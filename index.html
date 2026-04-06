@@ -1,107 +1,103 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Мой облачный проект</title>
+  <meta charset="UTF-8">
+  <title>Мой облачный проект</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 50px;
+      background-color: #f4f4f9;
+    }
 
-    <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f9;
-        }
+    .form-container {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 300px;
+    }
 
-        .form-container {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 300px;
-        }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
 
-        h3 {
-            text-align: center;
-        }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #4a80e0;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 5px;
+    }
 
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #4a90e2;
-            border: none;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background: #357abd;
-        }
-    </style>
+    button:hover {
+      background: #3f70c0;
+    }
+  </style>
 </head>
-
 <body>
 
 <div class="form-container">
-    <h3>Отправить заявку</h3>
-    <form id="feedbackForm">
-        <input type="text" id="userName" placeholder="Ваше имя" required>
-        <input type="email" id="userEmail" placeholder="Ваш Email" required>
-        <button type="submit">Отправить в облако</button>
-    </form>
+  <h3>Отправить заявку</h3>
+  <form id="feedbackForm">
+    <input type="text" id="userName" placeholder="Ваше имя" required>
+    <input type="email" id="userEmail" placeholder="Ваш Email" required>
+    <button type="submit">Отправить в облако</button>
+  </form>
 </div>
 
 <script type="module">
-    // Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  // Импортируем модули Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyAr8f6PflSiVczpj8WgED80IiT3s-ZfyxA",
-        authDomain: "messi-c20b5.firebaseapp.com",
-        projectId: "messi-c20b5",
-        storageBucket: "messi-c20b5.appspot.com",
-        messagingSenderId: "943341545721",
-        appId: "1:943341545721:web:e361a31596f9c5165e9a28"
-    };
+  // Твоя конфигурация Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyAr8f6PflSiVczpj8WgED80IiT3s-ZfyxA",
+  authDomain: "messi-c20b5.firebaseapp.com",
+  projectId: "messi-c20b5",
+  storageBucket: "messi-c20b5.firebasestorage.app",
+  messagingSenderId: "943341545721",
+  appId: "1:943341545721:web:e361a31596f9c5165e9a28",
+  measurementId: "G-DB7J25KXSL"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  // Инициализация
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    const form = document.getElementById("feedbackForm");
+  // Логика формы
+  document.getElementById("feedbackForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+    const nameInput = document.getElementById("userName").value;
+    const emailInput = document.getElementById("userEmail").value;
 
-        const name = document.getElementById("userName").value;
-        const email = document.getElementById("userEmail").value;
+    try {
+      // Запись в коллекцию "requests"
+      await addDoc(collection(db, "requests"), {
+        name: nameInput,
+        email: emailInput,
+        timestamp: new Date()
+      });
 
-        try {
-            await addDoc(collection(db, "requests"), {
-                name: name,
-                email: email,
-                createdAt: new Date()
-            });
-
-            alert("✅ Данные успешно отправлены!");
-            form.reset();
-        } catch (error) {
-            console.error("Ошибка:", error);
-            alert("❌ Ошибка отправки");
-        }
-    });
+      alert("Готово! Данные сохранены в Firebase.");
+      document.getElementById("feedbackForm").reset();
+    } catch (error) {
+      console.error("Ошибка записи: ", error);
+      alert("Ошибка при отправке.");
+    }
+  });
 </script>
 
 </body>
