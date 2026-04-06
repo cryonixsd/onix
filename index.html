@@ -1,97 +1,172 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Firebase форма</title>
-
-  <style>
-    body {
-      font-family: Arial;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #f4f4f9;
-    }
-
-    .box {
-      background: white;
-      padding: 25px;
-      border-radius: 10px;
-      width: 300px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-    }
-
-    button {
-      background: #4a80e0;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #3a6fd0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button#mainBtn { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: 600; cursor: pointer; }
+        button#mainBtn:disabled { background: #ccc; }
+        .post { background: #fff; border: 1px solid #eaeaea; padding: 15px; margin-top: 15px; border-radius: 8px; width: 100%; max-width: 500px; }
+        .like-btn { cursor: pointer; border: none; background: #f8f9fa; padding: 5px 12px; border-radius: 20px; }
+        .time { font-size: 11px; color: #999; float: right; }
+    </style>
 </head>
 <body>
 
-<div class="box">
-  <h3>Отправить заявку</h3>
-
-  <form id="form">
-    <input type="text" id="name" placeholder="Имя" required>
-    <input type="email" id="email" placeholder="Email" required>
-    <button type="submit">Отправить</button>
-  </form>
+<div class="container">
+    <h3>Панель управления данными</h3>
+    <input type="text" id="name" placeholder="Имя профиля">
+    <input type="email" id="email" placeholder="Рабочий Email">
+    <button id="mainBtn">Опубликовать в облако</button>
 </div>
 
+<input type="text" id="search" placeholder="🔍 Поиск по имени..." style="width:100%; max-width:500px; margin-top:10px; padding:10px;">
+
+<div id="feed" style="width: 100%; max-width: 500px;"></div>
+
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+    getFirestore, collection, addDoc, query, orderBy, onSnapshot, 
+    updateDoc, doc, increment, deleteDoc 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAr8f6PflSiVczpj8WgED80IiT3s-ZfyxA",
-    authDomain: "messi-c20b5.firebaseapp.com",
-    projectId: "messi-c20b5",
-    storageBucket: "messi-c20b5.firebasestorage.app",
-    messagingSenderId: "943341545721",
-    appId: "1:943341545721:web:e361a31596f9c5165e9a28",
-    measurementId: "G-DB7J25KXSL"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyBPnoCcL-TUYTdYPaJunewfsaWIylyDE7w",
+  authDomain: "test-da803.firebaseapp.com",
+  projectId: "test-da803",
+  storageBucket: "test-da803.firebasestorage.app",
+  messagingSenderId: "501020279316",
+  appId: "1:501020279316:web:7acd5a849fcd0df318dd01"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  const form = document.getElementById("form");
+let allPosts = [];
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById("name").value;
-    const email = document.getElementById("email").value;
-
-    try {
-      await addDoc(collection(db, "requests"), {
-        name: name,
-        email: email,
-        createdAt: new Date()
-      });
-
-      alert("✅ Отправлено!");
-      form.reset();
-
-    } catch (err) {
-      console.error(err);
-      alert("❌ Ошибка");
+// VALIDATION
+function validateForm(name, email) {
+    if (!name || name.length < 2) {
+        alert("Имя слишком короткое");
+        return false;
     }
-  });
+    if (!email.includes("@")) {
+        alert("Некорректный email");
+        return false;
+    }
+    return true;
+}
+
+// DELETE
+window.deletePost = async (id) => {
+    await deleteDoc(doc(db, "requests", id));
+};
+
+// EDIT
+window.editName = async (id, oldName) => {
+    const newName = prompt("Новое имя:", oldName);
+    if (!newName) return;
+
+    await updateDoc(doc(db, "requests", id), {
+        name: newName
+    });
+};
+
+// LIKE
+window.processLike = async (id) => {
+    await updateDoc(doc(db, "requests", id), {
+        likes: increment(1)
+    });
+};
+
+// ADD POST
+document.getElementById('mainBtn').onclick = async () => {
+    const btn = document.getElementById('mainBtn');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+
+    btn.disabled = true;
+
+    if (!validateForm(nameInput.value, emailInput.value)) {
+        btn.disabled = false;
+        return;
+    }
+
+    await addDoc(collection(db, "requests"), {
+        name: nameInput.value,
+        email: emailInput.value,
+        likes: 0,
+        timestamp: new Date() // ✅ фикс
+    });
+
+    nameInput.value = "";
+    emailInput.value = "";
+    btn.disabled = false;
+};
+
+// RENDER
+function renderPosts(posts) {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = "";
+
+    posts.forEach((item) => {
+        let date = '...';
+
+        if (item.timestamp) {
+            if (item.timestamp.toDate) {
+                date = item.timestamp.toDate().toLocaleString();
+            } else {
+                date = new Date(item.timestamp).toLocaleString();
+            }
+        }
+
+        feed.innerHTML += `
+            <div class="post">
+                <span class="time">${date}</span>
+                <b>${item.name}</b>
+                <p>${item.email}</p>
+
+                <button class="like-btn" onclick="processLike('${item.id}')">
+                    👍 ${item.likes || 0}
+                </button>
+
+                <button onclick="editName('${item.id}', '${item.name}')">✏️</button>
+                <button onclick="deletePost('${item.id}')">🗑</button>
+            </div>
+        `;
+    });
+}
+
+// REALTIME
+const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
+
+onSnapshot(q, (snapshot) => {
+    allPosts = [];
+    snapshot.forEach((docItem) => {
+        allPosts.push({
+            id: docItem.id,
+            ...docItem.data()
+        });
+    });
+    renderPosts(allPosts);
+});
+
+// SEARCH
+document.getElementById('search').addEventListener('input', (e) => {
+    const value = e.target.value.toLowerCase().trim();
+
+    if (!value) return renderPosts(allPosts);
+
+    const filtered = allPosts.filter(post =>
+        post.name.toLowerCase().includes(value)
+    );
+
+    renderPosts(filtered);
+});
 </script>
 
 </body>
