@@ -1,154 +1,145 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>BaaS - Панель управления</title>
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        
-        button#mainBtn { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: 600; cursor: pointer; transition: 0.3s; }
-        button#mainBtn:hover { background: #0056b3; }
-        button#mainBtn:disabled { background: #ccc; cursor: not-allowed; }
+  <meta charset="UTF-8" />
+  <title>Монитор группы</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eef1f4;
+    }
 
-        .post { background: #fff; border: 1px solid #eaeaea; padding: 15px; margin-top: 15px; border-radius: 8px; width: 100%; max-width: 500px; position: relative; }
-        .time { font-size: 11px; color: #999; float: right; }
-        
-        .actions { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+    }
 
-        .btn-reaction { cursor: pointer; border: none; background: #f8f9fa; padding: 6px 14px; border-radius: 20px; font-size: 14px; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
-        .btn-reaction:hover { background: #e2e6ea; }
-        
-        .btn-edit {
-            cursor: pointer;
-            background: #e7f3ff; 
-            color: #007bff; 
-            border: 1px solid #c2e0ff;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .btn-edit:hover {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-    </style>
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    h3 {
+      margin-top: 0;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .green { background: #2ecc71; }
+    .yellow { background: #f1c40f; color: #000; }
+    .blue { background: #3498db; }
+    .gray { background: #7f8c8d; }
+
+    .user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  </style>
 </head>
 <body>
+<div class="container">
 
-    <div class="container">
-        <h3>Панель управления данными</h3>
-        <input type="text" id="name" placeholder="Имя профиля">
-        <input type="email" id="email" placeholder="Рабочий Email">
-        <button id="mainBtn">Панель управления постами</button>
+  <div class="card">
+    <h3>Мой профиль</h3>
+    <div id="info">Вы зашли как: ...</div>
+
+    <div class="buttons">
+      <button class="green" onclick="changeStatus('Учёба','#2ecc71')">📚 Учёба</button>
+      <button class="yellow" onclick="changeStatus('Кофе','#f1c40f')">☕ Кофе</button>
+      <button class="blue" onclick="changeStatus('В игре','#3498db')">🎮 В игре</button>
+      <button class="gray" onclick="changeStatus('Дома','#7f8c8d')">🏠 Дома</button>
     </div>
+  </div>
 
-    <div id="feed" style="width: 100%; max-width: 500px;"></div>
+  <div class="card">
+    <h3>Монитор группы</h3>
+    <div id="group-list"></div>
+  </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { 
-            getFirestore, collection, addDoc, query, orderBy, onSnapshot, 
-            serverTimestamp, updateDoc, doc, increment 
-        } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+</div>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCFVJ51BsKGuUxQt0o33SWEOGuwiZ3kEOk",
-  authDomain: "nail-f4d56.firebaseapp.com",
-  projectId: "nail-f4d56",
-  storageBucket: "nail-f4d56.firebasestorage.app",
-  messagingSenderId: "168626129143",
-  appId: "1:168626129143:web:e7ce853bb23007b490ebf2",
-  measurementId: "G-NZNSLSZZFM"
-};
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-        // ФУНКЦИЯ 1: Изменение счетчиков (лайки и дизлайки) через increment
-        window.processReaction = async (id, field) => {
-            const docRef = doc(db, "requests", id);
-            try {
-                await updateDoc(docRef, { [field]: increment(1) });
-            } catch (e) {
-                console.error("Ошибка обновления счетчика:", e.message);
-                alert("Ошибка: " + e.message);
-            }
-        };
+const URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
+const KEY = "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
 
-        window.editName = async (id, currentName) => {
-            const newName = prompt("Введите новое имя профиля:", currentName);
-            if (newName && newName !== currentName) {
-                const docRef = doc(db, "requests", id);
-                try {
-                    await updateDoc(docRef, { name: newName });
-                } catch (e) {
-                    console.error("Ошибка редактирования:", e.message);
-                    alert("Ошибка при сохранении: " + e.message);
-                }
-            }
-        };
+const supabase = createClient(URL, KEY)
 
-        document.getElementById('mainBtn').onclick = async () => {
-            const nameInput = document.getElementById('name');
-            const emailInput = document.getElementById('email');
-            
-            if (!nameInput.value || !emailInput.value) return alert("Заполните все поля");
+// ⚠️ замени на свой id
+const MY_ID = "93c0313a-7957-41ae-b952-6a75fafdf986"
 
-            const btn = document.getElementById('mainBtn');
-            btn.disabled = true;
-            
-            try {
-                await addDoc(collection(db, "requests"), {
-                    name: nameInput.value,
-                    email: emailInput.value,
-                    likes: 0,
-                    dislikes: 0,
-                    timestamp: serverTimestamp()
-                });
-                nameInput.value = "";
-                emailInput.value = "";
-            } catch (e) {
-                console.error("Ошибка публикации:", e.message);
-                alert("Ошибка сохранения: проверьте Security Rules в Firebase Console!");
-            }
-            btn.disabled = false;
-        };
+window.changeStatus = async (text, color) => {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ status: text, color: color })
+    .eq("id", MY_ID)
 
-        const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
-        onSnapshot(q, (snapshot) => {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = "";
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                feed.innerHTML += `
-                    <div class="post">
-                        <span class="time">${data.timestamp?.toDate().toLocaleString() || '...'}</span>
-                        <b>${data.name}</b>
-                        <p style="margin: 5px 0;">${data.email}</p>
-                        
-                        <div class="actions">
-                            <button class="btn-edit" onclick="editName('${doc.id}', '${data.name}')">
-                                ✏️ edit
-                            </button>
-                            
-                            <button class="btn-reaction" onclick="processReaction('${doc.id}', 'likes')">
-                                👍 ${data.likes || 0}
-                            </button>
-                            <button class="btn-reaction" onclick="processReaction('${doc.id}', 'dislikes')">
-                                👎 ${data.dislikes || 0}
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-        });
-    </script>
+  if (error) {
+    alert("Ошибка записи")
+    console.error(error)
+  } else {
+    fetchGroup()
+  }
+}
+
+async function fetchGroup() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("username", { ascending: true })
+
+  if (error) return console.error(error)
+
+  const list = document.getElementById("group-list")
+
+  list.innerHTML = data.map(user => `
+    <div class="user">
+      <div class="dot" style="background:${user.color || '#ccc'}"></div>
+      <div>
+        <div>${user.username}</div>
+        <small>${user.status || 'Не указан'}</small>
+      </div>
+    </div>
+  `).join("")
+
+  const me = data.find(u => u.id === MY_ID)
+  if (me) {
+    document.getElementById("info").innerText =
+      `Вы зашли как: ${me.username}`
+  }
+}
+
+fetchGroup()
+setInterval(fetchGroup, 5000)
+</script>
+
 </body>
 </html>
