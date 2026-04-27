@@ -60,6 +60,7 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
+      background: #ccc;
     }
   </style>
 </head>
@@ -71,10 +72,10 @@
     <div id="info">Вы зашли как: ...</div>
 
     <div class="buttons">
-      <button class="green" onclick="changeStatus('Учёба','#2ecc71')">📚 Учёба</button>
-      <button class="yellow" onclick="changeStatus('Кофе','#f1c40f')">☕ Кофе</button>
-      <button class="blue" onclick="changeStatus('В игре','#3498db')">🎮 В игре</button>
-      <button class="gray" onclick="changeStatus('Дома','#7f8c8d')">🏠 Дома</button>
+      <button class="green" onclick="changeStatus('Учёба')">📚 Учёба</button>
+      <button class="yellow" onclick="changeStatus('Кофе')">☕ Кофе</button>
+      <button class="blue" onclick="changeStatus('В игре')">🎮 В игре</button>
+      <button class="gray" onclick="changeStatus('Дома')">🏠 Дома</button>
     </div>
   </div>
 
@@ -93,13 +94,12 @@ const KEY = "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
 
 const supabase = createClient(URL, KEY)
 
-// ⚠️ замени на свой id
 const MY_ID = "93c0313a-7957-41ae-b952-6a75fafdf986"
 
-window.changeStatus = async (text, color) => {
+window.changeStatus = async (text) => {
   const { error } = await supabase
     .from("profiles")
-    .update({ status: text, color: color })
+    .update({ status: text })
     .eq("id", MY_ID)
 
   if (error) {
@@ -122,7 +122,7 @@ async function fetchGroup() {
 
   list.innerHTML = data.map(user => `
     <div class="user">
-      <div class="dot" style="background:${user.color || '#ccc'}"></div>
+      <div class="dot"></div>
       <div>
         <div>${user.username}</div>
         <small>${user.status || 'Не указан'}</small>
