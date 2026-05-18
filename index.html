@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Монитор группы</title>
+
   <style>
     body {
       margin: 0;
@@ -16,7 +17,7 @@
     }
 
     .card {
-      background: #fff;
+      background: white;
       border-radius: 10px;
       padding: 20px;
       margin-bottom: 20px;
@@ -31,7 +32,7 @@
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
-      margin-top: 10px;
+      margin-top: 15px;
     }
 
     button {
@@ -41,18 +42,30 @@
       color: white;
       font-weight: bold;
       cursor: pointer;
+      font-size: 14px;
     }
 
     .green { background: #2ecc71; }
-    .yellow { background: #f1c40f; color: #000; }
+    .yellow { background: #f1c40f; color: black; }
     .blue { background: #3498db; }
     .gray { background: #7f8c8d; }
+
+    .login-btn {
+      background: #4285F4;
+      width: 100%;
+    }
+
+    .logout-btn {
+      background: #e74c3c;
+      width: 100%;
+      margin-top: 10px;
+    }
 
     .user {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 0;
+      padding: 10px 0;
       border-bottom: 1px solid #eee;
     }
 
@@ -60,85 +73,238 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #ccc;
+      background: #2ecc71;
+    }
+
+    small {
+      color: #555;
     }
   </style>
 </head>
+
 <body>
+
 <div class="container">
 
   <div class="card">
+
     <h3>Мой профиль</h3>
-    <div id="info">Вы зашли как: ...</div>
+
+    <div id="info">
+      Проверка авторизации...
+    </div>
 
     <div class="buttons">
-      <button class="green" onclick="changeStatus('Учёба')">📚 Учёба</button>
-      <button class="yellow" onclick="changeStatus('Кофе')">☕ Кофе</button>
-      <button class="blue" onclick="changeStatus('В игре')">🎮 В игре</button>
-      <button class="gray" onclick="changeStatus('Дома')">🏠 Дома</button>
+      <button class="green" onclick="changeStatus('📚 Учёба')">📚 Учёба</button>
+      <button class="yellow" onclick="changeStatus('☕ Кофе')">☕ Кофе</button>
+      <button class="blue" onclick="changeStatus('🎮 В игре')">🎮 В игре</button>
+      <button class="gray" onclick="changeStatus('🏠 Дома')">🏠 Дома</button>
     </div>
+
+    <button class="logout-btn" onclick="logout()">
+      Выйти
+    </button>
+
   </div>
 
   <div class="card">
     <h3>Монитор группы</h3>
+
     <div id="group-list"></div>
   </div>
 
 </div>
 
 <script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-const URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
-const KEY = "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
+import { createClient }
+from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-const supabase = createClient(URL, KEY)
+const SUPABASE_URL =
+  "https://lxceruhmesknzyjyyoqj.supabase.co"
 
-const MY_ID = "93c0313a-7957-41ae-b952-6a75fafdf986"
+const SUPABASE_KEY =
+  "ТВОЙ_ANON_KEY"
 
-window.changeStatus = async (text) => {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ status: text })
-    .eq("id", MY_ID)
+const supabase =
+  createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  if (error) {
-    alert(error.message)
-   console.error(error)
-  } else {
-    fetchGroup()
-  }
+let CURRENT_USER = null
+
+// ======================
+// LOGIN
+// ======================
+
+window.loginGoogle = async () => {
+
+  await supabase.auth.signInWithOAuth({
+    provider: "google"
+  })
+
 }
 
+// ======================
+// LOGOUT
+// ======================
+
+window.logout = async () => {
+
+  await supabase.auth.signOut()
+
+  location.reload()
+
+}
+
+// ======================
+// INIT USER
+// ======================
+
+async function initUser() {
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession()
+
+  // НЕ ВОШЁЛ
+  if (!session) {
+
+    document.getElementById("info").innerHTML = `
+      <button class="login-btn" onclick="loginGoogle()">
+        Войти через Google
+      </button>
+    `
+
+    return
+  }
+
+  CURRENT_USER = session.user
+
+  // ПРОВЕРЯЕМ ПРОФИЛЬ
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", CURRENT_USER.id)
+    .single()
+
+  // ЕСЛИ НЕТ ПРОФИЛЯ
+  if (!profile) {
+
+    await supabase
+      .from("profiles")
+      .insert({
+
+        id: CURRENT_USER.id,
+
+        username:
+          CURRENT_USER.user_metadata.full_name
+          || CURRENT_USER.email,
+
+        status: "🟢 Онлайн"
+
+      })
+
+  }
+
+  fetchGroup()
+
+}
+
+// ======================
+// CHANGE STATUS
+// ======================
+
+window.changeStatus = async (text) => {
+
+  if (!CURRENT_USER) {
+    alert("Сначала войдите")
+    return
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      status: text
+    })
+    .eq("id", CURRENT_USER.id)
+
+  if (error) {
+
+    console.error(error)
+    alert(error.message)
+
+    return
+  }
+
+  fetchGroup()
+
+}
+
+// ======================
+// FETCH USERS
+// ======================
+
 async function fetchGroup() {
+
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .order("username", { ascending: true })
+    .order("username", {
+      ascending: true
+    })
 
-  if (error) return console.error(error)
+  if (error) {
 
-  const list = document.getElementById("group-list")
+    console.error(error)
 
-  list.innerHTML = data.map(user => `
-    <div class="user">
-      <div class="dot"></div>
-      <div>
-        <div>${user.username}</div>
-        <small>${user.status || 'Не указан'}</small>
-      </div>
-    </div>
-  `).join("")
-
-  const me = data.find(u => u.id === MY_ID)
-  if (me) {
-    document.getElementById("info").innerText =
-      `Вы зашли как: ${me.username}`
+    return
   }
+
+  // СПИСОК
+  document.getElementById("group-list").innerHTML =
+
+    data.map(user => `
+
+      <div class="user">
+
+        <div class="dot"></div>
+
+        <div>
+          <div>${user.username}</div>
+
+          <small>
+            ${user.status || 'Не указан'}
+          </small>
+        </div>
+
+      </div>
+
+    `).join("")
+
+  // МОЙ ПРОФИЛЬ
+  const me =
+    data.find(u => u.id === CURRENT_USER?.id)
+
+  if (me) {
+
+    document.getElementById("info").innerHTML = `
+
+      <b>${me.username}</b>
+      <br>
+      ${CURRENT_USER.email}
+
+    `
+  }
+
 }
 
-fetchGroup()
+// ======================
+// START
+// ======================
+
+initUser()
+
 setInterval(fetchGroup, 5000)
+
 </script>
 
 </body>
