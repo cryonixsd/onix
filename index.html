@@ -124,7 +124,7 @@ const SUPABASE_URL =
   "https://lxceruhmesknzyjyyoqj.supabase.co"
 
 const SUPABASE_KEY =
-  "ТВОЙ_ANON_KEY"
+  "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
 
 const supabase =
   createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -137,9 +137,22 @@ let CURRENT_USER = null
 
 window.loginGoogle = async () => {
 
-  await supabase.auth.signInWithOAuth({
-    provider: "google"
-  })
+  const { error } =
+    await supabase.auth.signInWithOAuth({
+
+      provider: "google",
+
+      options: {
+        redirectTo:
+          "https://cryonixsd.github.io/onix/"
+      }
+
+    })
+
+  if (error) {
+    console.error(error)
+    alert(error.message)
+  }
 
 }
 
