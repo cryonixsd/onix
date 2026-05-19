@@ -142,22 +142,6 @@ const supabase =
 let CURRENT_USER = null
 
 // ======================
-// FIX GOOGLE REDIRECT
-// ======================
-
-const hash = window.location.hash
-
-if (hash.includes("access_token")) {
-
-  history.replaceState(
-    null,
-    "",
-    window.location.pathname
-  )
-
-}
-
-// ======================
 // LOGIN
 // ======================
 
@@ -171,9 +155,7 @@ window.loginGoogle = async () => {
       options: {
 
         redirectTo:
-          "https://cryonixsd.github.io/onix/",
-
-        skipBrowserRedirect: false
+          "https://cryonixsd.github.io/onix/index.html"
 
       }
 
@@ -202,18 +184,37 @@ window.logout = async () => {
 }
 
 // ======================
+// AUTH STATE
+// ======================
+
+supabase.auth.onAuthStateChange(
+  async (event, session) => {
+
+    if (session) {
+
+      CURRENT_USER = session.user
+
+      await loadProfile()
+
+      fetchGroup()
+
+    }
+
+  }
+)
+
+// ======================
 // INIT USER
 // ======================
 
 async function initUser() {
 
   const {
-    data,
-    error
-  } = await supabase.auth.getUser()
+    data: { session }
+  } = await supabase.auth.getSession()
 
   // НЕ ВОШЁЛ
-  if (error || !data.user) {
+  if (!session) {
 
     document.getElementById("info").innerHTML = `
       <button class="login-btn" onclick="loginGoogle()">
@@ -224,16 +225,27 @@ async function initUser() {
     return
   }
 
-  CURRENT_USER = data.user
+  CURRENT_USER = session.user
 
-  // ПРОВЕРЯЕМ ПРОФИЛЬ
+  await loadProfile()
+
+  fetchGroup()
+
+}
+
+// ======================
+// LOAD PROFILE
+// ======================
+
+async function loadProfile() {
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", CURRENT_USER.id)
     .single()
 
-  // ЕСЛИ НЕТ ПРОФИЛЯ
+  // СОЗДАТЬ ПРОФИЛЬ
   if (!profile) {
 
     await supabase
@@ -251,8 +263,6 @@ async function initUser() {
       })
 
   }
-
-  fetchGroup()
 
 }
 
@@ -277,6 +287,7 @@ window.changeStatus = async (text) => {
   if (error) {
 
     console.error(error)
+
     alert(error.message)
 
     return
