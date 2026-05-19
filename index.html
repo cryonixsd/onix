@@ -53,6 +53,7 @@
     .login-btn {
       background: #4285F4;
       width: 100%;
+      padding: 12px;
     }
 
     .logout-btn {
@@ -79,6 +80,10 @@
     small {
       color: #555;
     }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -87,191 +92,135 @@
 <div class="container">
 
   <div class="card">
-
     <h3>Мой профиль</h3>
 
     <div id="info">
       Проверка авторизации...
     </div>
 
-    <div class="buttons">
-      <button class="green" onclick="changeStatus('📚 Учёба')">📚 Учёба</button>
-      <button class="yellow" onclick="changeStatus('☕ Кофе')">☕ Кофе</button>
-      <button class="blue" onclick="changeStatus('🎮 В игре')">🎮 В игре</button>
-      <button class="gray" onclick="changeStatus('🏠 Дома')">🏠 Дома</button>
+    <div id="auth-controls" class="hidden">
+      <div class="buttons">
+        <button class="green" onclick="changeStatus('📚 Учёба')">📚 Учёба</button>
+        <button class="yellow" onclick="changeStatus('☕ Кофе')">☕ Кофе</button>
+        <button class="blue" onclick="changeStatus('🎮 В игре')">🎮 В игре</button>
+        <button class="gray" onclick="changeStatus('🏠 Дома')">🏠 Дома</button>
+      </div>
+
+      <button class="logout-btn" onclick="logout()">
+        Выйти
+      </button>
     </div>
-
-    <button class="logout-btn" onclick="logout()">
-      Выйти
-    </button>
-
   </div>
 
   <div class="card">
     <h3>Монитор группы</h3>
-
-    <div id="group-list"></div>
+    <div id="group-list">Войдите, чтобы увидеть список группы.</div>
   </div>
 
 </div>
 
 <script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-import { createClient }
-from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
 
-const SUPABASE_URL =
-  "https://lxceruhmesknzyjyyoqj.supabase.co"
+// Установлен правильный Anon Ключ вместо старого sb_publishable
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
 
-const SUPABASE_KEY =
-  "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
-
-const supabase =
-  createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    }
-  )
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})
 
 let CURRENT_USER = null
 
 // ======================
 // LOGIN
 // ======================
-
 window.loginGoogle = async () => {
-
-  const { error } =
-    await supabase.auth.signInWithOAuth({
-
-      provider: "google",
-
-      options: {
-
-        redirectTo:
-          "https://cryonixsd.github.io/onix/index.html"
-
-      }
-
-    })
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: "https://cryonixsd.github.io/onix/index.html"
+    }
+  })
 
   if (error) {
-
     console.error(error)
-
     alert(error.message)
-
   }
-
 }
 
 // ======================
 // LOGOUT
 // ======================
-
 window.logout = async () => {
-
   await supabase.auth.signOut()
-
   location.reload()
-
 }
 
 // ======================
-// AUTH STATE
+// AUTH STATE CHANGED
 // ======================
-
-supabase.auth.onAuthStateChange(
-  async (event, session) => {
-
-    if (session) {
-
-      CURRENT_USER = session.user
-
-      await loadProfile()
-
-      fetchGroup()
-
-    }
-
-  }
-)
-
-// ======================
-// INIT USER
-// ======================
-
-async function initUser() {
-
-  const {
-    data: { session }
-  } = await supabase.auth.getSession()
-
-  // НЕ ВОШЁЛ
-  if (!session) {
-
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    CURRENT_USER = session.user
+    document.getElementById("auth-controls").classList.remove("hidden")
+    await loadProfile()
+    fetchGroup()
+  } else {
+    CURRENT_USER = null
+    document.getElementById("auth-controls").classList.add("hidden")
     document.getElementById("info").innerHTML = `
       <button class="login-btn" onclick="loginGoogle()">
         Войти через Google
       </button>
     `
-
-    return
+    document.getElementById("group-list").innerHTML = "Войдите, чтобы увидеть список группы."
   }
-
-  CURRENT_USER = session.user
-
-  await loadProfile()
-
-  fetchGroup()
-
-}
+})
 
 // ======================
-// LOAD PROFILE
+// LOAD / CREATE PROFILE
 // ======================
-
 async function loadProfile() {
+  if (!CURRENT_USER) return
 
-  const { data: profile } = await supabase
+  // Использован .maybeSingle(), чтобы не вызывать ошибку, если профиля нет
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", CURRENT_USER.id)
-    .single()
+    .maybeSingle()
 
-  // СОЗДАТЬ ПРОФИЛЬ
-  if (!profile) {
-
-    await supabase
-      .from("profiles")
-      .insert({
-
-        id: CURRENT_USER.id,
-
-        username:
-          CURRENT_USER.user_metadata.full_name
-          || CURRENT_USER.email,
-
-        status: "🟢 Онлайн"
-
-      })
-
+  if (error) {
+    console.error("Ошибка загрузки профиля:", error.message)
+    return
   }
 
+  // Если профиля ещё нет в таблице — создаем его
+  if (!profile) {
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        id: CURRENT_USER.id,
+        username: CURRENT_USER.user_metadata.full_name || CURRENT_USER.email,
+        status: "🟢 Онлайн"
+      })
+    
+    if (insertError) {
+      console.error("Ошибка создания профиля:", insertError.message)
+    }
+  }
 }
 
 // ======================
 // CHANGE STATUS
 // ======================
-
 window.changeStatus = async (text) => {
-
   if (!CURRENT_USER) {
     alert("Сначала войдите")
     return
@@ -279,90 +228,62 @@ window.changeStatus = async (text) => {
 
   const { error } = await supabase
     .from("profiles")
-    .update({
-      status: text
-    })
+    .update({ status: text })
     .eq("id", CURRENT_USER.id)
 
   if (error) {
-
     console.error(error)
-
-    alert(error.message)
-
+    alert("Не удалось обновить статус: " + error.message)
     return
   }
 
   fetchGroup()
-
 }
 
 // ======================
 // FETCH USERS
 // ======================
-
 async function fetchGroup() {
+  if (!CURRENT_USER) return
 
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .order("username", {
-      ascending: true
-    })
+    .order("username", { ascending: true })
 
   if (error) {
-
-    console.error(error)
-
+    console.error("Ошибка обновления списка группы:", error.message)
     return
   }
 
-  // СПИСОК
-  document.getElementById("group-list").innerHTML =
-
-    data.map(user => `
-
-      <div class="user">
-
-        <div class="dot"></div>
-
-        <div>
-          <div>${user.username}</div>
-
-          <small>
-            ${user.status || 'Не указан'}
-          </small>
-        </div>
-
+  // Рендерим список пользователей
+  document.getElementById("group-list").innerHTML = data.map(user => `
+    <div class="user">
+      <div class="dot"></div>
+      <div>
+        <div>${user.username}</div>
+        <small>${user.status || 'Не указан'}</small>
       </div>
+    </div>
+  `).join("")
 
-    `).join("")
-
-  // МОЙ ПРОФИЛЬ
-  const me =
-    data.find(u => u.id === CURRENT_USER?.id)
-
+  // Обновляем плашку "Мой профиль" актуальными данными
+  const me = data.find(u => u.id === CURRENT_USER?.id)
   if (me) {
-
     document.getElementById("info").innerHTML = `
-
       <b>${me.username}</b>
       <br>
-      ${CURRENT_USER.email}
-
+      <small style="color: #888;">${CURRENT_USER.email}</small>
+      <br>
+      <span style="display:inline-block; margin-top:5px; font-size:13px; padding:3px 8px; background:#eee; border-radius:4px;">
+        Текущий статус: ${me.status || 'Не указан'}
+      </span>
     `
   }
-
 }
 
-// ======================
-// START
-// ======================
-
-initUser()
-
+// Запуск автоматического обновления каждые 5 секунд
 setInterval(fetchGroup, 5000)
-
 </script>
 
 </body>
