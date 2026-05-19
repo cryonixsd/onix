@@ -98,7 +98,7 @@
       Проверка авторизации...
     </div>
 
-    <div id="auth-controls" class="hidden">
+    <div id="profile-actions" class="hidden">
       <div class="buttons">
         <button class="green" onclick="changeStatus('📚 Учёба')">📚 Учёба</button>
         <button class="yellow" onclick="changeStatus('☕ Кофе')">☕ Кофе</button>
@@ -114,7 +114,7 @@
 
   <div class="card">
     <h3>Монитор группы</h3>
-    <div id="group-list">Войдите, чтобы увидеть список группы.</div>
+    <div id="group-list">Загрузка списка группы...</div>
   </div>
 
 </div>
@@ -123,8 +123,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
 const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
-
-// Установлен правильный Anon Ключ вместо старого sb_publishable
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -138,7 +136,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 let CURRENT_USER = null
 
 // ======================
-// LOGIN
+// GOOGLE LOGIN
 // ======================
 window.loginGoogle = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -150,7 +148,7 @@ window.loginGoogle = async () => {
 
   if (error) {
     console.error(error)
-    alert(error.message)
+    alert("Ошибка авторизации: " + error.message)
   }
 }
 
@@ -163,66 +161,11 @@ window.logout = async () => {
 }
 
 // ======================
-// AUTH STATE CHANGED
-// ======================
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (session) {
-    CURRENT_USER = session.user
-    document.getElementById("auth-controls").classList.remove("hidden")
-    await loadProfile()
-    fetchGroup()
-  } else {
-    CURRENT_USER = null
-    document.getElementById("auth-controls").classList.add("hidden")
-    document.getElementById("info").innerHTML = `
-      <button class="login-btn" onclick="loginGoogle()">
-        Войти через Google
-      </button>
-    `
-    document.getElementById("group-list").innerHTML = "Войдите, чтобы увидеть список группы."
-  }
-})
-
-// ======================
-// LOAD / CREATE PROFILE
-// ======================
-async function loadProfile() {
-  if (!CURRENT_USER) return
-
-  // Использован .maybeSingle(), чтобы не вызывать ошибку, если профиля нет
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", CURRENT_USER.id)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Ошибка загрузки профиля:", error.message)
-    return
-  }
-
-  // Если профиля ещё нет в таблице — создаем его
-  if (!profile) {
-    const { error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        id: CURRENT_USER.id,
-        username: CURRENT_USER.user_metadata.full_name || CURRENT_USER.email,
-        status: "🟢 Онлайн"
-      })
-    
-    if (insertError) {
-      console.error("Ошибка создания профиля:", insertError.message)
-    }
-  }
-}
-
-// ======================
-// CHANGE STATUS
+// СМЕНА СТАТУСА
 // ======================
 window.changeStatus = async (text) => {
   if (!CURRENT_USER) {
-    alert("Сначала войдите")
+    alert("Сначала войдите!")
     return
   }
 
@@ -237,26 +180,83 @@ window.changeStatus = async (text) => {
     return
   }
 
-  fetchGroup()
+  // Сразу обновляем список группы, чтобы увидеть свой новый статус
+  await fetchGroup()
 }
 
 // ======================
-// FETCH USERS
+// СЛУШАТЕЛЬ СОСТОЯНИЯ АВТОРИЗАЦИИ
 // ======================
-async function fetchGroup() {
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    CURRENT_USER = session.user
+    document.getElementById("profile-actions").classList.remove("hidden")
+    
+    // Сначала убедимся, что профиль есть в БД, затем подгрузим список
+    await ensureProfileExists()
+    await fetchGroup()
+  } else {
+    CURRENT_USER = null
+    document.getElementById("profile-actions").classList.add("hidden")
+    document.getElementById("info").innerHTML = `
+      <button class="login-btn" onclick="loginGoogle()">
+        Войти через Google
+      </button>
+    `
+    document.getElementById("group-list").innerHTML = "Войдите, чтобы увидеть участников группы."
+  }
+})
+
+// ======================
+// ПРОВЕРКА И АВТОСОЗДАНИЕ ПРОФИЛЯ
+// ======================
+async function ensureProfileExists() {
   if (!CURRENT_USER) return
 
+  // .maybeSingle() не спамит ошибкой 406, если записи нет, а просто возвращает null
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", CURRENT_USER.id)
+    .maybeSingle()
+
+  if (error) {
+    console.error("Ошибка при проверке профиля:", error.message)
+    return
+  }
+
+  // Если пользователя еще нет в таблице profiles — создаем запись
+  if (!profile) {
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        id: CURRENT_USER.id,
+        username: CURRENT_USER.user_metadata.full_name || CURRENT_USER.email || "Пользователь",
+        status: "🟢 Онлайн"
+      })
+
+    if (insertError) {
+      console.error("Не удалось создать профиль в БД:", insertError.message)
+      alert("Ошибка создания профиля в базе данных. Убедись, что на таблице 'profiles' настроены RLS-политики на INSERT!")
+    }
+  }
+}
+
+// ======================
+// СБОР СПИСКА ГРУППЫ
+// ======================
+async function fetchGroup() {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .order("username", { ascending: true })
 
   if (error) {
-    console.error("Ошибка обновления списка группы:", error.message)
+    console.error("Ошибка при получении списка группы:", error.message)
     return
   }
 
-  // Рендерим список пользователей
+  // Рендерим всех юзеров
   document.getElementById("group-list").innerHTML = data.map(user => `
     <div class="user">
       <div class="dot"></div>
@@ -267,23 +267,35 @@ async function fetchGroup() {
     </div>
   `).join("")
 
-  // Обновляем плашку "Мой профиль" актуальными данными
-  const me = data.find(u => u.id === CURRENT_USER?.id)
-  if (me) {
-    document.getElementById("info").innerHTML = `
-      <b>${me.username}</b>
-      <br>
-      <small style="color: #888;">${CURRENT_USER.email}</small>
-      <br>
-      <span style="display:inline-block; margin-top:5px; font-size:13px; padding:3px 8px; background:#eee; border-radius:4px;">
-        Текущий статус: ${me.status || 'Не указан'}
-      </span>
-    `
+  // Обновляем блок "Мой профиль"
+  if (CURRENT_USER) {
+    const me = data.find(u => u.id === CURRENT_USER.id)
+    if (me) {
+      document.getElementById("info").innerHTML = `
+        <b>${me.username}</b>
+        <br>
+        <small style="color: #666;">${CURRENT_USER.email}</small>
+        <br>
+        <span style="display:inline-block; margin-top:8px; font-size:12px; padding:3px 8px; background:#eef1f4; border-radius:4px; font-weight:bold;">
+          Твой статус: ${me.status || 'Не указан'}
+        </span>
+      `
+    } else {
+      document.getElementById("info").innerHTML = `
+        <b>Авторизован:</b> ${CURRENT_USER.email}<br>
+        <span style="color: #f1c40f; font-size: 12px;">Синхронизация профиля с БД...</span>
+      `
+    }
   }
 }
 
-// Запуск автоматического обновления каждые 5 секунд
-setInterval(fetchGroup, 5000)
+// Автоматическое обновление списка каждые 5 секунд
+setInterval(() => {
+  if (CURRENT_USER) {
+    fetchGroup()
+  }
+}, 5000)
+
 </script>
 
 </body>
