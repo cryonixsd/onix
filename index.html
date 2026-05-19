@@ -127,7 +127,17 @@ const SUPABASE_KEY =
   "sb_publishable_P5E4C8LFgGgsqDFupEa2Vg_efVTmB59"
 
 const supabase =
-  createClient(SUPABASE_URL, SUPABASE_KEY)
+  createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }
+  )
 
 let CURRENT_USER = null
 
@@ -198,11 +208,12 @@ window.logout = async () => {
 async function initUser() {
 
   const {
-    data: { session }
-  } = await supabase.auth.getSession()
+    data,
+    error
+  } = await supabase.auth.getUser()
 
   // НЕ ВОШЁЛ
-  if (!session) {
+  if (error || !data.user) {
 
     document.getElementById("info").innerHTML = `
       <button class="login-btn" onclick="loginGoogle()">
@@ -213,7 +224,7 @@ async function initUser() {
     return
   }
 
-  CURRENT_USER = session.user
+  CURRENT_USER = data.user
 
   // ПРОВЕРЯЕМ ПРОФИЛЬ
   const { data: profile } = await supabase
