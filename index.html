@@ -132,6 +132,22 @@ const supabase =
 let CURRENT_USER = null
 
 // ======================
+// FIX GOOGLE REDIRECT
+// ======================
+
+const hash = window.location.hash
+
+if (hash.includes("access_token")) {
+
+  history.replaceState(
+    null,
+    "",
+    window.location.pathname
+  )
+
+}
+
+// ======================
 // LOGIN
 // ======================
 
@@ -143,15 +159,22 @@ window.loginGoogle = async () => {
       provider: "google",
 
       options: {
+
         redirectTo:
-          "https://cryonixsd.github.io/onix/"
+          "https://cryonixsd.github.io/onix/",
+
+        skipBrowserRedirect: false
+
       }
 
     })
 
   if (error) {
+
     console.error(error)
+
     alert(error.message)
+
   }
 
 }
