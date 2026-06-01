@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Монитор группы</title>
 
   <style>
@@ -14,6 +15,7 @@
     .container {
       max-width: 600px;
       margin: 50px auto;
+      padding: 0 15px;
     }
 
     .card {
@@ -43,6 +45,11 @@
       font-weight: bold;
       cursor: pointer;
       font-size: 14px;
+      transition: opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.8;
     }
 
     .green { background: #2ecc71; }
@@ -70,19 +77,53 @@
       border-bottom: 1px solid #eee;
     }
 
+    .user:last-child {
+      border-bottom: none;
+    }
+
     .dot {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       background: #2ecc71;
+      flex-shrink: 0;
+    }
+
+    .offline .dot {
+      background: #95a5a6;
     }
 
     small {
       color: #555;
+      font-size: 12px;
     }
 
     .hidden {
       display: none !important;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+    }
+
+    .error {
+      color: #e74c3c;
+      background: #fdeaea;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 12px;
+      padding: 3px 8px;
+      background: #eef1f4;
+      border-radius: 4px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -93,22 +134,17 @@
 
   <div class="card">
     <h3>Мой профиль</h3>
-
     <div id="info">
-      Проверка авторизации...
+      <div class="loading">Проверка авторизации...</div>
     </div>
-
     <div id="profile-actions" class="hidden">
       <div class="buttons">
-        <button class="green" onclick="changeStatus('📚 Учёба')">📚 Учёба</button>
-        <button class="yellow" onclick="changeStatus('☕ Кофе')">☕ Кофе</button>
-        <button class="blue" onclick="changeStatus('🎮 В игре')">🎮 В игре</button>
-        <button class="gray" onclick="changeStatus('🏠 Дома')">🏠 Дома</button>
+        <button class="green" id="status-study">📚 Учёба</button>
+        <button class="yellow" id="status-coffee">☕ Кофе</button>
+        <button class="blue" id="status-game">🎮 В игре</button>
+        <button class="gray" id="status-home">🏠 Дома</button>
       </div>
-
-      <button class="logout-btn" onclick="logout()">
-        Выйти
-      </button>
+      <button class="logout-btn" id="logout-btn">Выйти</button>
     </div>
   </div>
 
@@ -122,8 +158,9 @@
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
+// ⚠️ ВАЖНО: Замените эти данные на свои из Supabase!
+const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"  // Замените на ваш URL
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"  // Замените на ваш anon ключ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
@@ -138,16 +175,18 @@ let CURRENT_USER = null
 // ======================
 // GOOGLE LOGIN
 // ======================
-window.loginGoogle = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: "https://cryonixsd.github.io/onix/index.html"
-    }
-  })
+async function loginGoogle() {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.href
+      }
+    })
 
-  if (error) {
-    console.error(error)
+    if (error) throw error
+  } catch (error) {
+    console.error("Ошибка авторизации:", error)
     alert("Ошибка авторизации: " + error.message)
   }
 }
@@ -155,57 +194,40 @@ window.loginGoogle = async () => {
 // ======================
 // LOGOUT
 // ======================
-window.logout = async () => {
-  await supabase.auth.signOut()
-  location.reload()
+async function logout() {
+  try {
+    await supabase.auth.signOut()
+    location.reload()
+  } catch (error) {
+    console.error("Ошибка выхода:", error)
+    alert("Ошибка выхода: " + error.message)
+  }
 }
 
 // ======================
 // СМЕНА СТАТУСА
 // ======================
-window.changeStatus = async (text) => {
+async function changeStatus(text) {
   if (!CURRENT_USER) {
     alert("Сначала войдите!")
     return
   }
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({ status: text })
-    .eq("id", CURRENT_USER.id)
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ status: text })
+      .eq("id", CURRENT_USER.id)
 
-  if (error) {
-    console.error(error)
-    alert("Не удалось обновить статус: " + error.message)
-    return
-  }
+    if (error) throw error
 
-  // Сразу обновляем список группы, чтобы увидеть свой новый статус
-  await fetchGroup()
-}
-
-// ======================
-// СЛУШАТЕЛЬ СОСТОЯНИЯ АВТОРИЗАЦИИ
-// ======================
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (session) {
-    CURRENT_USER = session.user
-    document.getElementById("profile-actions").classList.remove("hidden")
-    
-    // Сначала убедимся, что профиль есть в БД, затем подгрузим список
-    await ensureProfileExists()
+    // Обновляем список группы
     await fetchGroup()
-  } else {
-    CURRENT_USER = null
-    document.getElementById("profile-actions").classList.add("hidden")
-    document.getElementById("info").innerHTML = `
-      <button class="login-btn" onclick="loginGoogle()">
-        Войти через Google
-      </button>
-    `
-    document.getElementById("group-list").innerHTML = "Войдите, чтобы увидеть участников группы."
+  } catch (error) {
+    console.error("Ошибка обновления статуса:", error)
+    alert("Не удалось обновить статус: " + error.message)
   }
-})
+}
 
 // ======================
 // ПРОВЕРКА И АВТОСОЗДАНИЕ ПРОФИЛЯ
@@ -213,31 +235,36 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 async function ensureProfileExists() {
   if (!CURRENT_USER) return
 
-  // .maybeSingle() не спамит ошибкой 406, если записи нет, а просто возвращает null
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", CURRENT_USER.id)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Ошибка при проверке профиля:", error.message)
-    return
-  }
-
-  // Если пользователя еще нет в таблице profiles — создаем запись
-  if (!profile) {
-    const { error: insertError } = await supabase
+  try {
+    const { data: profile, error } = await supabase
       .from("profiles")
-      .insert({
-        id: CURRENT_USER.id,
-        username: CURRENT_USER.user_metadata.full_name || CURRENT_USER.email || "Пользователь",
-        status: "🟢 Онлайн"
-      })
+      .select("*")
+      .eq("id", CURRENT_USER.id)
+      .maybeSingle()
 
-    if (insertError) {
-      console.error("Не удалось создать профиль в БД:", insertError.message)
-      alert("Ошибка создания профиля в базе данных. Убедись, что на таблице 'profiles' настроены RLS-политики на INSERT!")
+    if (error) throw error
+
+    if (!profile) {
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: CURRENT_USER.id,
+          username: CURRENT_USER.user_metadata?.full_name || 
+                   CURRENT_USER.email?.split('@')[0] || 
+                   "Пользователь",
+          status: "🟢 Онлайн"
+        })
+
+      if (insertError) throw insertError
+      
+      console.log("Профиль создан")
+    }
+  } catch (error) {
+    console.error("Ошибка при проверке/создании профиля:", error)
+    if (error.message.includes('row-level security')) {
+      alert("Ошибка: Не настроены RLS политики в Supabase. Пожалуйста, выполните SQL запросы из инструкции.")
+    } else {
+      alert("Ошибка синхронизации профиля: " + error.message)
     }
   }
 }
@@ -246,56 +273,152 @@ async function ensureProfileExists() {
 // СБОР СПИСКА ГРУППЫ
 // ======================
 async function fetchGroup() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("username", { ascending: true })
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("username", { ascending: true })
 
-  if (error) {
-    console.error("Ошибка при получении списка группы:", error.message)
-    return
-  }
+    if (error) throw error
 
-  // Рендерим всех юзеров
-  document.getElementById("group-list").innerHTML = data.map(user => `
-    <div class="user">
-      <div class="dot"></div>
-      <div>
-        <div>${user.username}</div>
-        <small>${user.status || 'Не указан'}</small>
-      </div>
-    </div>
-  `).join("")
-
-  // Обновляем блок "Мой профиль"
-  if (CURRENT_USER) {
-    const me = data.find(u => u.id === CURRENT_USER.id)
-    if (me) {
-      document.getElementById("info").innerHTML = `
-        <b>${me.username}</b>
-        <br>
-        <small style="color: #666;">${CURRENT_USER.email}</small>
-        <br>
-        <span style="display:inline-block; margin-top:8px; font-size:12px; padding:3px 8px; background:#eef1f4; border-radius:4px; font-weight:bold;">
-          Твой статус: ${me.status || 'Не указан'}
-        </span>
-      `
-    } else {
-      document.getElementById("info").innerHTML = `
-        <b>Авторизован:</b> ${CURRENT_USER.email}<br>
-        <span style="color: #f1c40f; font-size: 12px;">Синхронизация профиля с БД...</span>
-      `
+    if (!data || data.length === 0) {
+      document.getElementById("group-list").innerHTML = '<div class="loading">Нет участников</div>'
+      return
     }
+
+    // Рендерим всех пользователей
+    document.getElementById("group-list").innerHTML = data.map(user => `
+      <div class="user">
+        <div class="dot"></div>
+        <div style="flex: 1;">
+          <div><strong>${escapeHtml(user.username)}</strong></div>
+          <small>${escapeHtml(user.status || 'Не указан')}</small>
+        </div>
+      </div>
+    `).join("")
+
+    // Обновляем блок "Мой профиль"
+    if (CURRENT_USER) {
+      const me = data.find(u => u.id === CURRENT_USER.id)
+      if (me) {
+        document.getElementById("info").innerHTML = `
+          <div><strong>${escapeHtml(me.username)}</strong></div>
+          <small style="color: #666;">${escapeHtml(CURRENT_USER.email || '')}</small>
+          <div class="status-badge">
+            Твой статус: ${escapeHtml(me.status || 'Не указан')}
+          </div>
+        `
+      } else {
+        document.getElementById("info").innerHTML = `
+          <div><strong>${escapeHtml(CURRENT_USER.email?.split('@')[0] || 'Пользователь')}</strong></div>
+          <small style="color: #666;">${escapeHtml(CURRENT_USER.email || '')}</small>
+          <div class="status-badge" style="background: #f1c40f;">
+            Синхронизация профиля...
+          </div>
+        `
+      }
+    }
+  } catch (error) {
+    console.error("Ошибка получения списка группы:", error)
+    document.getElementById("group-list").innerHTML = `
+      <div class="error">
+        Ошибка загрузки списка: ${escapeHtml(error.message)}
+      </div>
+    `
   }
 }
 
+// Вспомогательная функция для защиты от XSS
+function escapeHtml(str) {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// ======================
+// НАСТРОЙКА ОБРАБОТЧИКОВ КНОПОК
+// ======================
+function setupEventListeners() {
+  // Кнопки статусов
+  const statuses = {
+    'status-study': '📚 Учёба',
+    'status-coffee': '☕ Кофе',
+    'status-game': '🎮 В игре',
+    'status-home': '🏠 Дома'
+  }
+  
+  for (const [id, status] of Object.entries(statuses)) {
+    const btn = document.getElementById(id)
+    if (btn) {
+      btn.onclick = () => changeStatus(status)
+    }
+  }
+  
+  // Кнопка выхода
+  const logoutBtn = document.getElementById('logout-btn')
+  if (logoutBtn) {
+    logoutBtn.onclick = () => logout()
+  }
+}
+
+// ======================
+// СЛУШАТЕЛЬ СОСТОЯНИЯ АВТОРИЗАЦИИ
+// ======================
+supabase.auth.onAuthStateChange(async (event, session) => {
+  console.log("Auth event:", event)
+  
+  if (session) {
+    CURRENT_USER = session.user
+    document.getElementById("profile-actions").classList.remove("hidden")
+    setupEventListeners()
+    
+    await ensureProfileExists()
+    await fetchGroup()
+  } else {
+    CURRENT_USER = null
+    document.getElementById("profile-actions").classList.add("hidden")
+    document.getElementById("info").innerHTML = `
+      <button class="login-btn" id="google-login-btn">
+        Войти через Google
+      </button>
+    `
+    document.getElementById("group-list").innerHTML = "Войдите, чтобы увидеть участников группы."
+    
+    // Навешиваем обработчик на кнопку логина
+    const loginBtn = document.getElementById('google-login-btn')
+    if (loginBtn) {
+      loginBtn.onclick = () => loginGoogle()
+    }
+  }
+})
+
+// Инициализация при загрузке
+setupEventListeners()
+
 // Автоматическое обновление списка каждые 5 секунд
-setInterval(() => {
+let intervalId = setInterval(() => {
   if (CURRENT_USER) {
     fetchGroup()
   }
 }, 5000)
 
+// Очистка интервала при перезагрузке (опционально)
+window.addEventListener('beforeunload', () => {
+  if (intervalId) clearInterval(intervalId)
+})
+
+// Делаем функции доступными для консоли (для отладки)
+window.debug = {
+  changeStatus,
+  logout,
+  loginGoogle,
+  fetchGroup,
+  currentUser: () => CURRENT_USER
+}
 </script>
 
 </body>
