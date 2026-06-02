@@ -162,16 +162,20 @@
       font-size: 12px;
       color: #666;
       margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .online-dot {
-      width: 10px;
-      height: 10px;
+    .status-indicator {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: #2ecc71;
-      margin-right: 8px;
       display: inline-block;
     }
+
+    .status-online { background: #2ecc71; }
+    .status-offline { background: #95a5a6; }
 
     /* Правая панель - Чат */
     .chat-panel {
@@ -275,6 +279,11 @@
       background: #2980b9;
     }
 
+    .send-btn:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -324,6 +333,17 @@
       text-align: center;
       padding: 40px;
       color: #666;
+    }
+
+    /* Анимация для статусов */
+    @keyframes statusUpdate {
+      0% { opacity: 0.7; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(5px); }
+      100% { opacity: 0.7; transform: translateX(0); }
+    }
+
+    .status-updated {
+      animation: statusUpdate 0.5s ease;
     }
   </style>
 </head>
@@ -385,7 +405,7 @@
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-// ========== НАСТРОЙКИ SUPABASE (ЗАМЕНИТЕ НА ВАШИ!) ==========
+// ========== НАСТРОЙКИ SUPABASE ==========
 const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
 
@@ -434,15 +454,30 @@ async function ensureProfile() {
                      CURRENT_USER.email?.split('@')[0] || 
                      "Пользователь"
     
-    await supabase.from("profiles").insert({
+    const { error: insertError } = await supabase.from("profiles").insert({
       id: CURRENT_USER.id,
       username: username,
-      status: "🟢 Онлайн"
+      status: "🏠 Дома"  // Статус по умолчанию
     })
+    
+    if (insertError) {
+      console.error("Ошибка создания профиля:", insertError)
+    }
   }
 }
 
+// Функция для получения эмодзи статуса
+function getStatusEmoji(status) {
+  if (status.includes("Учёба")) return "📚"
+  if (status.includes("Кофе")) return "☕"
+  if (status.includes("игре")) return "🎮"
+  if (status.includes("Дома")) return "🏠"
+  return "🟢"
+}
+
 async function loadMembers() {
+  if (!CURRENT_USER) return
+  
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -456,16 +491,28 @@ async function loadMembers() {
   const container = document.getElementById("members-list")
   if (!container) return
 
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="loading">Нет участников</div>'
+    return
+  }
+
   container.innerHTML = data.map(member => {
     const avatarLetter = (member.username?.[0] || '?').toUpperCase()
+    const statusText = member.status || "🏠 Дома"
+    const statusEmoji = getStatusEmoji(statusText)
+    
+    // Подсветка текущего пользователя
+    const isCurrentUser = member.id === CURRENT_USER?.id
+    const currentUserClass = isCurrentUser ? 'style="background: #e3f2fd; border-radius: 10px;"' : ''
+    
     return `
-      <div class="member">
+      <div class="member" ${currentUserClass}>
         <div class="member-avatar">${avatarLetter}</div>
         <div class="member-info">
-          <div class="member-name">${escapeHtml(member.username)}</div>
+          <div class="member-name">${escapeHtml(member.username)}${isCurrentUser ? ' (Вы)' : ''}</div>
           <div class="member-status">
-            <span class="online-dot"></span>
-            ${escapeHtml(member.status || '🟢 Онлайн')}
+            <span class="status-indicator status-online"></span>
+            <span>${statusEmoji} ${escapeHtml(statusText)}</span>
           </div>
         </div>
       </div>
@@ -475,24 +522,59 @@ async function loadMembers() {
   // Обновляем имя в шапке
   const me = data.find(m => m.id === CURRENT_USER?.id)
   if (me) {
-    document.getElementById("header-username").textContent = me.username
+    const headerUsername = document.getElementById("header-username")
+    if (headerUsername) {
+      headerUsername.textContent = me.username
+    }
   }
 }
 
 // ========== РАБОТА СО СТАТУСОМ ==========
 async function updateStatus(statusText) {
-  if (!CURRENT_USER) return
+  if (!CURRENT_USER) {
+    alert("Сначала войдите в систему")
+    return
+  }
 
-  await supabase
-    .from("profiles")
-    .update({ status: statusText })
-    .eq("id", CURRENT_USER.id)
+  // Показываем индикатор загрузки на кнопках
+  const buttons = document.querySelectorAll(".status-btn")
+  buttons.forEach(btn => btn.style.opacity = "0.5")
+  
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ status: statusText })
+      .eq("id", CURRENT_USER.id)
 
-  await loadMembers()
+    if (error) {
+      console.error("Ошибка обновления статуса:", error)
+      alert("Ошибка обновления статуса: " + error.message)
+    } else {
+      console.log("Статус обновлён на:", statusText)
+      // Немедленно обновляем список участников
+      await loadMembers()
+      
+      // Добавляем визуальную обратную связь
+      const memberElements = document.querySelectorAll(".member")
+      memberElements.forEach(el => {
+        if (el.textContent.includes("(Вы)")) {
+          el.classList.add("status-updated")
+          setTimeout(() => el.classList.remove("status-updated"), 500)
+        }
+      })
+    }
+  } catch (err) {
+    console.error("Ошибка:", err)
+    alert("Не удалось обновить статус")
+  } finally {
+    buttons.forEach(btn => btn.style.opacity = "1")
+  }
 }
 
 // ========== РАБОТА С ЧАТОМ ==========
 async function loadMessages() {
+  if (!CURRENT_USER) return
+  
   const { data, error } = await supabase
     .from("messages")
     .select(`
@@ -538,29 +620,40 @@ async function sendMessage() {
 
   if (!message) return
   if (!CURRENT_USER) {
-    alert("Сначала войдите!")
+    alert("Сначала войдите в систему!")
     return
   }
 
+  const sendBtn = document.getElementById("send-btn")
+  sendBtn.disabled = true
   input.disabled = true
 
-  const { error } = await supabase
-    .from("messages")
-    .insert({
-      user_id: CURRENT_USER.id,
-      message: message
-    })
+  try {
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        user_id: CURRENT_USER.id,
+        message: message
+      })
 
-  input.disabled = false
+    if (error) {
+      console.error("Ошибка отправки:", error)
+      alert("Ошибка отправки: " + error.message)
+      return
+    }
 
-  if (error) {
-    console.error("Ошибка отправки:", error)
-    alert("Ошибка отправки: " + error.message)
-    return
+    input.value = ""
+    await loadMessages()
+    
+    // Фокус обратно на поле ввода
+    input.focus()
+  } catch (err) {
+    console.error("Ошибка:", err)
+    alert("Не удалось отправить сообщение")
+  } finally {
+    sendBtn.disabled = false
+    input.disabled = false
   }
-
-  input.value = ""
-  await loadMessages()
 }
 
 // ========== АВТОРИЗАЦИЯ ==========
@@ -573,7 +666,7 @@ async function loginGoogle() {
   })
   if (error) {
     console.error("Ошибка входа:", error)
-    alert("Ошибка: " + error.message)
+    alert("Ошибка входа: " + error.message)
   }
 }
 
@@ -584,32 +677,45 @@ async function logout() {
 
 // ========== НАСТРОЙКА ИНТЕРФЕЙСА ==========
 function showApp() {
-  document.getElementById("login-screen").classList.add("hidden")
-  document.getElementById("main-app").classList.remove("hidden")
+  const loginScreen = document.getElementById("login-screen")
+  const mainApp = document.getElementById("main-app")
+  if (loginScreen) loginScreen.classList.add("hidden")
+  if (mainApp) mainApp.classList.remove("hidden")
 }
 
 function showLogin() {
-  document.getElementById("login-screen").classList.remove("hidden")
-  document.getElementById("main-app").classList.add("hidden")
+  const loginScreen = document.getElementById("login-screen")
+  const mainApp = document.getElementById("main-app")
+  if (loginScreen) loginScreen.classList.remove("hidden")
+  if (mainApp) mainApp.classList.add("hidden")
 }
 
 // ========== РЕАЛЬНОЕ ВРЕМЯ (Realtime) ==========
 function setupRealtime() {
   // Слушаем изменения в таблице profiles (статусы)
-  supabase
+  const profilesChannel = supabase
     .channel('profiles-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-      loadMembers()
-    })
+    .on('postgres_changes', 
+      { event: 'UPDATE', schema: 'public', table: 'profiles' }, 
+      (payload) => {
+        console.log("Статус обновлён:", payload.new.username, payload.new.status)
+        loadMembers() // Обновляем список участников
+      }
+    )
     .subscribe()
 
   // Слушаем новые сообщения в чате
-  supabase
+  const messagesChannel = supabase
     .channel('messages-changes')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-      loadMessages()
-    })
+    .on('postgres_changes', 
+      { event: 'INSERT', schema: 'public', table: 'messages' }, 
+      () => {
+        loadMessages() // Загружаем новые сообщения
+      }
+    )
     .subscribe()
+    
+  console.log("Realtime подписки настроены")
 }
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
@@ -630,6 +736,7 @@ async function init() {
 
   // Слушаем изменения авторизации
   supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("Auth state change:", event)
     if (event === 'SIGNED_IN' && session) {
       CURRENT_USER = session.user
       showApp()
@@ -640,6 +747,8 @@ async function init() {
     } else if (event === 'SIGNED_OUT') {
       CURRENT_USER = null
       showLogin()
+      // Перезагружаем страницу для очистки состояния
+      setTimeout(() => location.reload(), 100)
     }
   })
 }
@@ -655,8 +764,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (logoutBtn) logoutBtn.onclick = logout
 
   // Кнопки статусов
-  document.querySelectorAll(".status-btn").forEach(btn => {
-    btn.onclick = () => updateStatus(btn.dataset.status)
+  const statusButtons = document.querySelectorAll(".status-btn")
+  statusButtons.forEach(btn => {
+    btn.onclick = () => {
+      const status = btn.getAttribute("data-status")
+      if (status) updateStatus(status)
+    }
   })
 
   // Отправка сообщения
@@ -666,7 +779,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (sendBtn) sendBtn.onclick = sendMessage
   if (chatInput) {
     chatInput.onkeypress = (e) => {
-      if (e.key === 'Enter') sendMessage()
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        sendMessage()
+      }
     }
   }
 
