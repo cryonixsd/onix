@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Монитор группы + Чат</title>
+  <title>Монитор группы + Чат + Достижения</title>
 
   <style>
     * {
@@ -57,24 +57,6 @@
       font-size: 12px;
     }
 
-    .fix-profile-btn {
-      background: #f39c12;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .fix-profile-btn:hover {
-      background: #e67e22;
-    }
-
-    .logout-header-btn:hover {
-      background: #c0392b;
-    }
-
     .main-container {
       display: flex;
       flex: 1;
@@ -83,8 +65,9 @@
       overflow: hidden;
     }
 
+    /* Левая панель - Монитор */
     .group-panel {
-      width: 350px;
+      width: 320px;
       background: white;
       display: flex;
       flex-direction: column;
@@ -99,6 +82,7 @@
       font-size: 16px;
     }
 
+    /* Статус-бар */
     .status-buttons {
       padding: 12px;
       display: grid;
@@ -118,15 +102,36 @@
       transition: transform 0.1s;
     }
 
-    .status-btn:active {
-      transform: scale(0.97);
-    }
-
     .status-study { background: #2ecc71; color: white; }
     .status-coffee { background: #f1c40f; color: #333; }
     .status-game { background: #3498db; color: white; }
     .status-home { background: #95a5a6; color: white; }
 
+    /* Статистика */
+    .stats-bar {
+      background: #f8f9fa;
+      padding: 10px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-weight: bold;
+      font-size: 18px;
+      color: #2c3e50;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* Список участников */
     .members-list {
       flex: 1;
       overflow-y: auto;
@@ -137,9 +142,10 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px;
+      padding: 10px;
       border-radius: 10px;
       margin-bottom: 5px;
+      cursor: pointer;
       transition: background 0.2s;
     }
 
@@ -157,7 +163,7 @@
       justify-content: center;
       color: white;
       font-weight: bold;
-      font-size: 18px;
+      font-size: 16px;
     }
 
     .member-info {
@@ -173,21 +179,19 @@
     }
 
     .online-dot {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       display: inline-block;
-      animation: pulse 1.5s infinite;
     }
 
     .online-dot.online {
       background: #2ecc71;
-      box-shadow: 0 0 5px #2ecc71;
+      animation: pulse 1.5s infinite;
     }
 
     .online-dot.offline {
       background: #95a5a6;
-      animation: none;
     }
 
     @keyframes pulse {
@@ -197,7 +201,7 @@
     }
 
     .member-status {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
       margin-top: 4px;
       display: flex;
@@ -207,16 +211,14 @@
     }
 
     .study-timer {
-      font-size: 11px;
+      font-size: 10px;
       color: #2ecc71;
       background: #e8f5e9;
-      padding: 2px 8px;
+      padding: 2px 6px;
       border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
     }
 
+    /* Чат */
     .chat-panel {
       flex: 1;
       background: white;
@@ -257,17 +259,15 @@
     }
 
     .message-sender {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
       margin-bottom: 4px;
-      font-weight: 500;
     }
 
     .message-bubble {
       padding: 10px 14px;
       border-radius: 18px;
       background: #f0f0f0;
-      word-wrap: break-word;
       font-size: 14px;
     }
 
@@ -288,7 +288,6 @@
       border-top: 1px solid #e0e0e0;
       display: flex;
       gap: 10px;
-      background: white;
     }
 
     .chat-input {
@@ -297,7 +296,6 @@
       border: 1px solid #ddd;
       border-radius: 25px;
       outline: none;
-      font-size: 14px;
     }
 
     .send-btn {
@@ -307,12 +305,180 @@
       padding: 0 20px;
       border-radius: 25px;
       cursor: pointer;
-      font-weight: bold;
     }
 
-    .send-btn:disabled {
+    /* Правая панель - Рейтинг и достижения */
+    .right-panel {
+      width: 320px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .right-tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+      background: #f8f9fa;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: white;
+      color: #3498db;
+      border-bottom: 2px solid #3498db;
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+
+    .tab-content.hidden {
+      display: none;
+    }
+
+    /* Рейтинг */
+    .top-student {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .top-rank {
+      font-size: 20px;
+      font-weight: bold;
+      width: 40px;
+      color: #3498db;
+    }
+
+    .top-rank.gold { color: #f1c40f; }
+    .top-rank.silver { color: #95a5a6; }
+    .top-rank.bronze { color: #cd7f32; }
+
+    .top-info {
+      flex: 1;
+    }
+
+    .top-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .top-stats {
+      font-size: 11px;
+      color: #666;
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    /* Достижения */
+    .achievement {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+
+    .achievement.locked {
+      opacity: 0.5;
+      background: #fff;
+    }
+
+    .achievement-icon {
+      font-size: 32px;
+      width: 50px;
+      text-align: center;
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .achievement-desc {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .achievement-badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #2ecc71;
+      color: white;
+    }
+
+    .achievement-badge.locked {
       background: #95a5a6;
-      cursor: not-allowed;
+    }
+
+    /* Профиль пользователя */
+    .profile-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .profile-card {
+      background: white;
+      border-radius: 20px;
+      width: 350px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .profile-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #3498db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+      margin: 0 auto 10px;
+    }
+
+    .close-modal {
+      float: right;
+      cursor: pointer;
+      font-size: 24px;
     }
 
     .hidden {
@@ -337,7 +503,6 @@
       padding: 40px;
       border-radius: 16px;
       text-align: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
     .google-login-btn {
@@ -346,7 +511,6 @@
       border: none;
       padding: 12px 30px;
       border-radius: 8px;
-      font-size: 16px;
       cursor: pointer;
     }
 
@@ -354,41 +518,6 @@
       text-align: center;
       padding: 40px;
       color: #666;
-    }
-
-    .stats-bar {
-      background: #f8f9fa;
-      padding: 10px;
-      border-bottom: 1px solid #e0e0e0;
-      font-size: 12px;
-      display: flex;
-      justify-content: space-around;
-    }
-
-    .stat-item {
-      text-align: center;
-    }
-
-    .stat-value {
-      font-weight: bold;
-      font-size: 16px;
-      color: #2c3e50;
-    }
-
-    .debug-panel {
-      background: #2c3e50;
-      color: #ecf0f1;
-      padding: 8px;
-      font-size: 10px;
-      font-family: monospace;
-      border-top: 1px solid #34495e;
-      max-height: 80px;
-      overflow-y: auto;
-    }
-
-    .debug-log {
-      margin: 2px 0;
-      font-size: 10px;
     }
   </style>
 </head>
@@ -399,7 +528,7 @@
   <div id="login-screen" class="login-screen">
     <div class="login-card">
       <h2>📱 Монитор группы</h2>
-      <p style="margin-bottom: 30px; color: #666;">Войдите, чтобы продолжить</p>
+      <p style="margin-bottom: 30px;">Войдите, чтобы продолжить</p>
       <button class="google-login-btn" id="google-login-btn">
         🚀 Войти через Google
       </button>
@@ -408,15 +537,15 @@
 
   <div id="main-app" class="hidden">
     <div class="header">
-      <div class="logo">📊 Монитор группы</div>
+      <div class="logo">📊 Монитор группы + Достижения</div>
       <div class="user-info">
         <span class="user-name" id="header-username">Загрузка...</span>
-        <button class="fix-profile-btn" id="fix-profile-btn">🔧 Создать профиль</button>
         <button class="logout-header-btn" id="logout-header-btn">Выйти</button>
       </div>
     </div>
 
     <div class="main-container">
+      <!-- Левая панель -->
       <div class="group-panel">
         <div class="panel-header">👥 Участники группы</div>
         <div class="stats-bar">
@@ -440,6 +569,7 @@
         </div>
       </div>
 
+      <!-- Центральный чат -->
       <div class="chat-panel">
         <div class="chat-header">💬 Общий чат</div>
         <div class="chat-messages" id="chat-messages">
@@ -450,9 +580,27 @@
           <button class="send-btn" id="send-btn">Отправить</button>
         </div>
       </div>
-    </div>
-    <div class="debug-panel" id="debug-panel">
-      <div>🔍 Отладка:</div>
+
+      <!-- Правая панель - Рейтинг и достижения -->
+      <div class="right-panel">
+        <div class="right-tabs">
+          <button class="tab-btn active" data-tab="rating">🏆 Топ</button>
+          <button class="tab-btn" data-tab="achievements">🎖️ Достижения</button>
+          <button class="tab-btn" data-tab="my">👤 Мой профиль</button>
+        </div>
+        
+        <div id="tab-rating" class="tab-content">
+          <div id="top-students-list">Загрузка...</div>
+        </div>
+        
+        <div id="tab-achievements" class="tab-content hidden">
+          <div id="achievements-list">Загрузка...</div>
+        </div>
+        
+        <div id="tab-my" class="tab-content hidden">
+          <div id="my-profile">Загрузка...</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -463,28 +611,94 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-})
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let CURRENT_USER = null
-let studyTimers = new Map()
-let timerIntervals = new Map()
+let studyStartTime = null
+let messageCount = 0
+let sessionCount = 0
 
-function addDebugLog(message, type = 'info') {
-  const panel = document.getElementById('debug-panel')
-  if (!panel) return
-  const time = new Date().toLocaleTimeString()
-  const color = type === 'error' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#ecf0f1'
-  panel.innerHTML += `<div class="debug-log" style="color: ${color}">[${time}] ${message}</div>`
-  panel.scrollTop = panel.scrollHeight
-  console.log(message)
-}
+// ========== ОПРЕДЕЛЕНИЕ ДОСТИЖЕНИЙ ==========
+const ACHIEVEMENTS = [
+  {
+    id: 'early_bird',
+    name: '🐦 Ранняя пташка',
+    description: 'Провёл учебную сессию до 8:00',
+    icon: '🌅',
+    check: (user) => {
+      if (user.early_bird_done) return true
+      if (studyStartTime && new Date().getHours() < 8) {
+        return true
+      }
+      return false
+    }
+  },
+  {
+    id: 'marathoner',
+    name: '🏃 Марафонец',
+    description: 'Проучился более 2 часов за раз',
+    icon: '⚡',
+    check: (user) => user.study_duration >= 7200
+  },
+  {
+    id: 'activist',
+    name: '💬 Активист',
+    description: 'Написал 20 сообщений в чате',
+    icon: '🎙️',
+    check: (user) => user.total_messages >= 20
+  },
+  {
+    id: 'talkative',
+    name: '🗣️ Говорун',
+    description: 'Написал 100 сообщений в чате',
+    icon: '📢',
+    check: (user) => user.total_messages >= 100
+  },
+  {
+    id: 'hardworker',
+    name: '💪 Трудоголик',
+    description: 'Провёл 10 учебных сессий',
+    icon: '🎯',
+    check: (user) => user.total_sessions >= 10
+  },
+  {
+    id: 'master',
+    name: '👑 Мастер учёбы',
+    description: 'Провёл 50 учебных сессий',
+    icon: '🏆',
+    check: (user) => user.total_sessions >= 50
+  },
+  {
+    id: 'weekend_warrior',
+    name: '🎯 Уикенд-воин',
+    description: 'Учился в выходной день',
+    icon: '📅',
+    check: (user) => {
+      if (user.weekend_warrior_done) return true
+      const day = new Date().getDay()
+      if (studyStartTime && (day === 0 || day === 6)) {
+        return true
+      }
+      return false
+    }
+  },
+  {
+    id: 'five_days',
+    name: '📅 5 дней подряд',
+    description: 'Учился 5 дней подряд',
+    icon: '📆',
+    check: (user) => user.streak_days >= 5
+  },
+  {
+    id: 'social',
+    name: '🤝 Социальный',
+    description: 'Написал 5 сообщений за день',
+    icon: '💬',
+    check: (user) => user.messages_today >= 5
+  }
+]
 
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function escapeHtml(str) {
   if (!str) return ''
   return str.replace(/[&<>]/g, function(m) {
@@ -499,442 +713,470 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatStudyTime(seconds) {
+function formatDuration(seconds) {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  
   if (hours > 0) return `${hours}ч ${minutes}м`
-  if (minutes > 0) return `${minutes}м ${secs}с`
-  return `${secs}с`
+  if (minutes > 0) return `${minutes}м`
+  return `${seconds}с`
 }
 
-// ========== ГЛАВНЫЙ ФИКС: получение актуального пользователя через getUser() ==========
-async function refreshCurrentUser() {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error) {
-    addDebugLog(`❌ Ошибка getUser(): ${error.message}`, 'error')
-    return null
+// ========== ПРОВЕРКА И ВЫДАЧА ДОСТИЖЕНИЙ ==========
+async function checkAndAwardAchievements(userId, userData) {
+  const newAchievements = []
+  
+  for (const achievement of ACHIEVEMENTS) {
+    // Проверяем, нет ли уже достижения
+    const alreadyHas = userData.achievements?.includes(achievement.id)
+    
+    if (!alreadyHas && achievement.check(userData)) {
+      newAchievements.push(achievement.id)
+    }
   }
-  if (user) {
-    addDebugLog(`✅ getUser() вернул: ID=${user.id}`, 'success')
-    return user
+  
+  if (newAchievements.length > 0) {
+    const currentAchievements = userData.achievements || []
+    const updatedAchievements = [...currentAchievements, ...newAchievements]
+    
+    // Обновляем в базе
+    await supabase
+      .from("profiles")
+      .update({ achievements: updatedAchievements })
+      .eq("id", userId)
+    
+    // Показываем уведомление
+    for (const achId of newAchievements) {
+      const ach = ACHIEVEMENTS.find(a => a.id === achId)
+      if (ach) {
+        alert(`🎉 НОВОЕ ДОСТИЖЕНИЕ: ${ach.name}!\n${ach.description}`)
+      }
+    }
+    
+    return true
   }
-  return null
+  return false
 }
 
-// ========== ПРИНУДИТЕЛЬНОЕ СОЗДАНИЕ ПРОФИЛЯ ==========
-async function forceCreateProfile() {
-  if (!CURRENT_USER) {
-    addDebugLog("❌ Нет пользователя для создания профиля", 'error')
-    return false
-  }
+// ========== ОБНОВЛЕНИЕ СТАТИСТИКИ ПОЛЬЗОВАТЕЛЯ ==========
+async function updateUserStats() {
+  if (!CURRENT_USER) return
   
-  addDebugLog(`🔧 Создание профиля для ID: ${CURRENT_USER.id}`, 'info')
-  
-  const username = CURRENT_USER.user_metadata?.full_name || 
-                   CURRENT_USER.email?.split('@')[0] || 
-                   "Пользователь"
-  
-  // Используем upsert для безопасного создания/обновления
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert({
-      id: CURRENT_USER.id,
-      username: username,
-      status: "🏠 Дома",
-      last_active: new Date().toISOString()
-    }, { onConflict: 'id' })
-    .select()
-  
-  if (error) {
-    addDebugLog(`❌ Ошибка upsert: ${error.message}`, 'error')
-    return false
-  }
-  
-  addDebugLog(`✅ Профиль создан/обновлён: ${username}`, 'success')
-  
-  // Проверяем
-  const { data: check } = await supabase
+  // Получаем текущие данные
+  const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", CURRENT_USER.id)
     .single()
   
-  if (check) {
-    addDebugLog(`✅ Подтверждено: профиль в БД`, 'success')
-    return true
+  if (!profile) return
+  
+  // Считаем количество сообщений пользователя
+  const { count: messagesCount } = await supabase
+    .from("messages")
+    .select("*", { count: 'exact', head: true })
+    .eq("user_id", CURRENT_USER.id)
+  
+  // Считаем количество сессий (считаем входы в статус "Учёба")
+  // Для простоты используем количество изменений статуса на "Учёба"
+  const { count: sessionCount } = await supabase
+    .from("study_logs")
+    .select("*", { count: 'exact', head: true })
+    .eq("user_id", CURRENT_USER.id)
+  
+  // Обновляем статистику
+  const updates = {
+    total_messages: messagesCount || 0,
+    total_sessions: sessionCount || 0
   }
   
-  return false
+  await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", CURRENT_USER.id)
+  
+  // Проверяем достижения
+  const updatedProfile = { ...profile, ...updates }
+  await checkAndAwardAchievements(CURRENT_USER.id, updatedProfile)
 }
 
-async function ensureProfile() {
-  if (!CURRENT_USER) return false
+// ========== ЛОГИРОВАНИЕ СЕССИЙ УЧЁБЫ ==========
+async function logStudySession() {
+  if (!CURRENT_USER || !studyStartTime) return
   
-  const { data, error } = await supabase
+  const duration = Math.floor((Date.now() - studyStartTime) / 1000)
+  if (duration < 60) return // Минимальная сессия 1 минута
+  
+  await supabase
+    .from("study_logs")
+    .insert({
+      user_id: CURRENT_USER.id,
+      start_time: new Date(studyStartTime).toISOString(),
+      end_time: new Date().toISOString(),
+      duration: duration
+    })
+  
+  // Обновляем общую длительность в профиле
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("total_study_time")
+    .eq("id", CURRENT_USER.id)
+    .single()
+  
+  const newTotal = (profile?.total_study_time || 0) + duration
+  await supabase
+    .from("profiles")
+    .update({ total_study_time: newTotal })
+    .eq("id", CURRENT_USER.id)
+  
+  studyStartTime = null
+}
+
+// ========== ЗАГРУЗКА ТОП СТУДЕНТОВ ==========
+async function loadTopStudents() {
+  const { data: students, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("total_study_time", { ascending: false })
+    .limit(10)
+  
+  if (error) {
+    console.error("Ошибка загрузки топа:", error)
+    return
+  }
+  
+  const container = document.getElementById("top-students-list")
+  if (!container) return
+  
+  if (!students || students.length === 0) {
+    container.innerHTML = '<div class="loading">Нет данных</div>'
+    return
+  }
+  
+  container.innerHTML = students.map((student, index) => {
+    let rankClass = ''
+    let rankIcon = `${index + 1}`
+    if (index === 0) rankClass = 'gold'
+    else if (index === 1) rankClass = 'silver'
+    else if (index === 2) rankClass = 'bronze'
+    
+    return `
+      <div class="top-student">
+        <div class="top-rank ${rankClass}">${rankIcon}</div>
+        <div class="top-info">
+          <div class="top-name">${escapeHtml(student.username)}</div>
+          <div class="top-stats">
+            <span>📚 ${formatDuration(student.total_study_time || 0)}</span>
+            <span>💬 ${student.total_messages || 0}</span>
+            <span>🎯 ${student.total_sessions || 0} сессий</span>
+          </div>
+        </div>
+        <div>🏆</div>
+      </div>
+    `
+  }).join("")
+}
+
+// ========== ЗАГРУЗКА ДОСТИЖЕНИЙ ==========
+async function loadAchievements() {
+  if (!CURRENT_USER) return
+  
+  const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", CURRENT_USER.id)
-    .maybeSingle()
+    .single()
   
-  if (error) {
-    addDebugLog(`❌ Ошибка проверки: ${error.message}`, 'error')
-    return false
-  }
+  const userAchievements = profile?.achievements || []
   
-  if (data) {
-    addDebugLog(`✅ Профиль найден: ${data.username}`, 'success')
-    return true
-  }
-  
-  addDebugLog(`⚠️ Профиль не найден, создаём...`, 'info')
-  return await forceCreateProfile()
-}
-
-// ========== ТАЙМЕРЫ УЧЁБЫ ==========
-function startStudyTimer(userId, status) {
-  if (timerIntervals.has(userId)) {
-    clearInterval(timerIntervals.get(userId))
-    timerIntervals.delete(userId)
-  }
-  
-  if (status === "📚 Учёба" && !studyTimers.has(userId)) {
-    studyTimers.set(userId, Date.now())
-    addDebugLog(`⏱️ Таймер учёбы запущен для ${userId}`, 'info')
-    
-    const interval = setInterval(() => {
-      if (studyTimers.has(userId)) loadMembers()
-    }, 1000)
-    timerIntervals.set(userId, interval)
-  } else if (status !== "📚 Учёба" && studyTimers.has(userId)) {
-    studyTimers.delete(userId)
-    if (timerIntervals.has(userId)) {
-      clearInterval(timerIntervals.get(userId))
-      timerIntervals.delete(userId)
-    }
-  }
-}
-
-function getStudyTime(userId) {
-  if (!studyTimers.has(userId)) return 0
-  return Math.floor((Date.now() - studyTimers.get(userId)) / 1000)
-}
-
-async function loadMembers() {
-  if (!CURRENT_USER) return
-  
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("username")
-
-  if (error) {
-    addDebugLog(`❌ Ошибка загрузки: ${error.message}`, 'error')
-    return
-  }
-
-  const twoMinutesAgo = Date.now() - 2 * 60 * 1000
-  let onlineCount = 0
-  let studyingCount = 0
-  
-  data.forEach(member => {
-    const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
-    if (lastActive > twoMinutesAgo) onlineCount++
-    if (member.status === "📚 Учёба") studyingCount++
-    if (member.status === "📚 Учёба") startStudyTimer(member.id, member.status)
-  })
-  
-  document.getElementById("online-count").textContent = onlineCount
-  document.getElementById("studying-count").textContent = studyingCount
-
-  const container = document.getElementById("members-list")
+  const container = document.getElementById("achievements-list")
   if (!container) return
-
-  container.innerHTML = data.map(member => {
-    const avatarLetter = (member.username?.[0] || '?').toUpperCase()
-    const statusText = member.status || "🏠 Дома"
-    const statusEmoji = statusText.includes("Учёба") ? "📚" : 
-                        statusText.includes("Кофе") ? "☕" : 
-                        statusText.includes("игре") ? "🎮" : "🏠"
-    
-    const isCurrentUser = member.id === CURRENT_USER?.id
-    const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
-    const isOnline = lastActive > (Date.now() - 2 * 60 * 1000)
-    const studySeconds = getStudyTime(member.id)
-    const studyTimeText = studySeconds > 0 ? `<span class="study-timer">⏱️ ${formatStudyTime(studySeconds)}</span>` : ''
+  
+  let completedCount = 0
+  let totalCount = ACHIEVEMENTS.length
+  
+  container.innerHTML = ACHIEVEMENTS.map(ach => {
+    const hasAchievement = userAchievements.includes(ach.id)
+    if (hasAchievement) completedCount++
     
     return `
-      <div class="member" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
-        <div class="member-avatar">${avatarLetter}</div>
-        <div class="member-info">
-          <div class="member-name">
-            ${escapeHtml(member.username)}${isCurrentUser ? ' (Вы)' : ''}
-            <span class="online-dot ${isOnline ? 'online' : 'offline'}"></span>
-          </div>
-          <div class="member-status">
-            <span>${statusEmoji} ${escapeHtml(statusText)}</span>
-            ${studyTimeText}
-          </div>
+      <div class="achievement ${hasAchievement ? '' : 'locked'}">
+        <div class="achievement-icon">${ach.icon}</div>
+        <div class="achievement-info">
+          <div class="achievement-name">${ach.name}</div>
+          <div class="achievement-desc">${ach.description}</div>
+        </div>
+        <div class="achievement-badge ${hasAchievement ? '' : 'locked'}">
+          ${hasAchievement ? '✅' : '🔒'}
         </div>
       </div>
     `
   }).join("")
-
-  const me = data.find(m => m.id === CURRENT_USER?.id)
-  if (me) document.getElementById("header-username").textContent = me.username
+  
+  // Добавляем прогресс
+  const progressHtml = `
+    <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 10px; text-align: center;">
+      <div style="font-size: 24px; font-weight: bold;">${completedCount}/${totalCount}</div>
+      <div style="font-size: 12px; color: #666;">Достижений получено</div>
+    </div>
+  `
+  container.innerHTML = progressHtml + container.innerHTML
 }
 
-async function updateStatus(statusText) {
-  if (!CURRENT_USER) return alert("Сначала войдите")
+// ========== ЗАГРУЗКА ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ==========
+async function loadMyProfile() {
+  if (!CURRENT_USER) return
   
-  addDebugLog(`🔄 Смена статуса: ${statusText}`, 'info')
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", CURRENT_USER.id)
+    .single()
+  
+  const container = document.getElementById("my-profile")
+  if (!container) return
+  
+  const achievedCount = profile?.achievements?.length || 0
+  
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px;">
+      <div style="width: 80px; height: 80px; border-radius: 50%; background: #3498db; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; color: white; font-size: 32px;">
+        ${(profile?.username?.[0] || '?').toUpperCase()}
+      </div>
+      <div style="font-size: 18px; font-weight: bold;">${escapeHtml(profile?.username || 'Пользователь')}</div>
+      
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0;">
+        <div>
+          <div style="font-size: 24px; font-weight: bold;">${profile?.total_sessions || 0}</div>
+          <div style="font-size: 11px; color: #666;">СЕССИЙ</div>
+        </div>
+        <div>
+          <div style="font-size: 24px; font-weight: bold;">${profile?.total_messages || 0}</div>
+          <div style="font-size: 11px; color: #666;">СООБЩ.</div>
+        </div>
+        <div>
+          <div style="font-size: 24px; font-weight: bold;">${achievedCount}</div>
+          <div style="font-size: 11px; color: #666;">ДОСТИЖ.</div>
+        </div>
+      </div>
+      
+      <div style="background: #e8f5e9; padding: 15px; border-radius: 12px;">
+        <div style="font-size: 12px; color: #666;">Время учёбы</div>
+        <div style="font-size: 20px; font-weight: bold; color: #2ecc71;">${formatDuration(profile?.total_study_time || 0)}</div>
+      </div>
+    </div>
+  `
+}
+
+// ========== РАБОТА СО СТАТУСАМИ ==========
+async function updateStatus(statusText) {
+  if (!CURRENT_USER) return
+  
+  // Если заканчиваем учёбу, логируем сессию
+  if (studyStartTime && statusText !== "📚 Учёба") {
+    await logStudySession()
+  }
+  
+  // Если начинаем учёбу, запоминаем время
+  if (statusText === "📚 Учёба" && !studyStartTime) {
+    studyStartTime = Date.now()
+  }
   
   const { error } = await supabase
     .from("profiles")
-    .update({ status: statusText })
+    .update({ status: statusText, last_active: new Date().toISOString() })
     .eq("id", CURRENT_USER.id)
-
-  if (error) {
-    addDebugLog(`❌ Ошибка: ${error.message}`, 'error')
-    alert("Ошибка: " + error.message)
-  } else {
-    addDebugLog(`✅ Статус обновлён`, 'success')
-    startStudyTimer(CURRENT_USER.id, statusText)
+  
+  if (!error) {
     await loadMembers()
+    await loadTopStudents()
+  }
+}
+
+// ========== ОТПРАВКА СООБЩЕНИЯ ==========
+async function sendMessage() {
+  const input = document.getElementById("chat-input")
+  const message = input.value.trim()
+  if (!message || !CURRENT_USER) return
+  
+  const { error } = await supabase
+    .from("messages")
+    .insert({ user_id: CURRENT_USER.id, message: message })
+  
+  if (!error) {
+    input.value = ""
+    await loadMessages()
+    await updateUserStats()
+    await loadAchievements()
+    await loadMyProfile()
+    await loadTopStudents()
   }
 }
 
 async function loadMessages() {
-  if (!CURRENT_USER) return
-  
   const { data, error } = await supabase
     .from("messages")
     .select(`*, profiles (username)`)
     .order("created_at", { ascending: true })
     .limit(100)
-
-  if (error) {
-    addDebugLog(`❌ Ошибка загрузки сообщений: ${error.message}`, 'error')
-    return
-  }
-
+  
+  if (error) return
+  
   const container = document.getElementById("chat-messages")
   if (!container) return
-
-  if (!data || data.length === 0) {
-    container.innerHTML = '<div class="loading">Нет сообщений. Напишите первое!</div>'
-    return
-  }
-
+  
   container.innerHTML = data.map(msg => {
     const isMine = msg.user_id === CURRENT_USER?.id
-    const senderName = msg.profiles?.username || "Пользователь"
-    
     return `
       <div class="message ${isMine ? 'message-mine' : 'message-other'}">
-        <div class="message-sender">${isMine ? 'Вы' : escapeHtml(senderName)}</div>
+        <div class="message-sender">${isMine ? 'Вы' : escapeHtml(msg.profiles?.username)}</div>
         <div class="message-bubble">${escapeHtml(msg.message)}</div>
         <div class="message-time">${formatTime(msg.created_at)}</div>
       </div>
     `
   }).join("")
-
   container.scrollTop = container.scrollHeight
 }
 
-// ========== ОТПРАВКА С ПРОВЕРКОЙ (ГЛАВНЫЙ ФИКС) ==========
-async function sendMessage() {
-  const input = document.getElementById("chat-input")
-  const message = input.value.trim()
-
-  if (!message) return
-
-  // 🔥 КРИТИЧЕСКАЯ ПРОВЕРКА: обновляем пользователя перед отправкой
-  const freshUser = await refreshCurrentUser()
-  if (!freshUser) {
-    addDebugLog("❌ НЕТ ПОЛЬЗОВАТЕЛЯ! Нужно перелогиниться.", 'error')
-    alert("Ошибка: пользователь не авторизован. Выйдите и войдите снова.")
-    return
-  }
-  
-  CURRENT_USER = freshUser
-  addDebugLog(`📤 Отправка от ${CURRENT_USER.id}: "${message.substring(0, 30)}"`, 'info')
-  
-  // Проверяем/создаём профиль
-  const profileOk = await ensureProfile()
-  if (!profileOk) {
-    addDebugLog(`❌ ПРОФИЛЬ НЕ СУЩЕСТВУЕТ! Нажмите "Создать профиль"`, 'error')
-    alert("❌ Профиль не найден! Нажмите оранжевую кнопку 'Создать профиль'")
-    return
-  }
-
-  const sendBtn = document.getElementById("send-btn")
-  sendBtn.disabled = true
-
-  try {
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({
-        user_id: CURRENT_USER.id,
-        message: message
-      })
-      .select()
-
-    if (error) {
-      addDebugLog(`❌ Ошибка INSERT: ${error.message} (code: ${error.code})`, 'error')
-      
-      if (error.code === '23503') {
-        addDebugLog(`🔑 FK ошибка! Пользователь ${CURRENT_USER.id} не в profiles`, 'error')
-        alert("❌ Ошибка: профиль отсутствует. Нажмите 'Создать профиль'")
-      } else {
-        alert("Ошибка: " + error.message)
-      }
-      return
-    }
-
-    addDebugLog(`✅ Сообщение отправлено!`, 'success')
-    input.value = ""
-    await loadMessages()
-
-  } catch (err) {
-    addDebugLog(`❌ Ошибка: ${err.message}`, 'error')
-  } finally {
-    sendBtn.disabled = false
-    input.focus()
-  }
-}
-
-async function updateOnlineStatus() {
-  if (!CURRENT_USER) return
-  await supabase
+async function loadMembers() {
+  const { data, error } = await supabase
     .from("profiles")
-    .update({ last_active: new Date().toISOString() })
-    .eq("id", CURRENT_USER.id)
-  loadMembers()
-}
-
-// ========== АВТОРИЗАЦИЯ (С ИСПРАВЛЕНИЕМ) ==========
-async function loginGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.href }
+    .select("*")
+    .order("username")
+  
+  if (error) return
+  
+  const twoMinutesAgo = Date.now() - 2 * 60 * 1000
+  let onlineCount = 0
+  let studyingCount = 0
+  
+  data.forEach(m => {
+    if (m.last_active && new Date(m.last_active).getTime() > twoMinutesAgo) onlineCount++
+    if (m.status === "📚 Учёба") studyingCount++
   })
-  if (error) addDebugLog(`❌ Ошибка входа: ${error.message}`, 'error')
+  
+  document.getElementById("online-count").textContent = onlineCount
+  document.getElementById("studying-count").textContent = studyingCount
+  
+  const container = document.getElementById("members-list")
+  container.innerHTML = data.map(member => {
+    const isOnline = member.last_active && new Date(member.last_active).getTime() > twoMinutesAgo
+    const isCurrent = member.id === CURRENT_USER?.id
+    return `
+      <div class="member" onclick="window.showUserProfile('${member.id}')">
+        <div class="member-avatar">${(member.username?.[0] || '?').toUpperCase()}</div>
+        <div class="member-info">
+          <div class="member-name">
+            ${escapeHtml(member.username)}${isCurrent ? ' (Вы)' : ''}
+            <span class="online-dot ${isOnline ? 'online' : 'offline'}"></span>
+          </div>
+          <div class="member-status">
+            <span>${member.status || "🏠 Дома"}</span>
+          </div>
+        </div>
+      </div>
+    `
+  }).join("")
+  
+  const me = data.find(m => m.id === CURRENT_USER?.id)
+  if (me) document.getElementById("header-username").textContent = me.username
 }
 
-async function logout() {
-  timerIntervals.forEach(interval => clearInterval(interval))
-  timerIntervals.clear()
-  studyTimers.clear()
-  await supabase.auth.signOut()
-  location.reload()
+async function ensureProfile() {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", CURRENT_USER.id)
+    .maybeSingle()
+  
+  if (!profile) {
+    const username = CURRENT_USER.user_metadata?.full_name || CURRENT_USER.email?.split('@')[0] || "Пользователь"
+    await supabase.from("profiles").insert({
+      id: CURRENT_USER.id,
+      username: username,
+      status: "🏠 Дома",
+      last_active: new Date().toISOString(),
+      total_messages: 0,
+      total_sessions: 0,
+      total_study_time: 0,
+      achievements: []
+    })
+  }
 }
 
-function showApp() {
-  document.getElementById("login-screen").classList.add("hidden")
-  document.getElementById("main-app").classList.remove("hidden")
-  setInterval(() => updateOnlineStatus(), 30000)
-  setInterval(() => loadMembers(), 1000)
-}
-
-function showLogin() {
-  document.getElementById("login-screen").classList.remove("hidden")
-  document.getElementById("main-app").classList.add("hidden")
-}
-
-function setupRealtime() {
-  supabase
-    .channel('profiles-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadMembers())
-    .subscribe()
-
-  supabase
-    .channel('messages-changes')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => loadMessages())
-    .subscribe()
-    
-  addDebugLog("✅ Realtime подключён", 'success')
-}
-
-// ========== ИНИЦИАЛИЗАЦИЯ (ГЛАВНЫЙ ФИКС) ==========
+// ========== АВТОРИЗАЦИЯ ==========
 async function init() {
-  // 🔥 ВАЖНО: используем getUser() вместо session.user
-  const freshUser = await refreshCurrentUser()
-
-  if (freshUser) {
-    CURRENT_USER = freshUser
-    addDebugLog(`👤 Инициализация: ID=${CURRENT_USER.id}`, 'success')
-    
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    CURRENT_USER = user
     await ensureProfile()
-    showApp()
-    await updateOnlineStatus()
+    await updateUserStats()
+    
+    document.getElementById("login-screen").classList.add("hidden")
+    document.getElementById("main-app").classList.remove("hidden")
+    
     await loadMembers()
     await loadMessages()
-    setupRealtime()
-  } else {
-    addDebugLog(`👤 Пользователь не авторизован`, 'info')
-    showLogin()
-  }
-
-  // Слушаем изменения авторизации
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    addDebugLog(`📡 Auth event: ${event}`, 'info')
+    await loadTopStudents()
+    await loadAchievements()
+    await loadMyProfile()
     
+    // Обновляем онлайн статус
+    setInterval(async () => {
+      await supabase
+        .from("profiles")
+        .update({ last_active: new Date().toISOString() })
+        .eq("id", CURRENT_USER.id)
+      loadMembers()
+    }, 30000)
+    
+    setInterval(() => loadTopStudents(), 10000)
+  } else {
+    document.getElementById("login-screen").classList.remove("hidden")
+    document.getElementById("main-app").classList.add("hidden")
+  }
+  
+  supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
-      // 🔥 ВАЖНО: обновляем пользователя через getUser()
-      const newUser = await refreshCurrentUser()
-      if (newUser) {
-        CURRENT_USER = newUser
-        await ensureProfile()
-        await updateOnlineStatus()
-        showApp()
-        await loadMembers()
-        await loadMessages()
-        setupRealtime()
-      }
+      location.reload()
     } else if (event === 'SIGNED_OUT') {
-      CURRENT_USER = null
-      showLogin()
+      location.reload()
     }
   })
 }
 
 // ========== НАВЕШИВАЕМ ОБРАБОТЧИКИ ==========
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById("google-login-btn")?.addEventListener('click', loginGoogle)
-  document.getElementById("logout-header-btn")?.addEventListener('click', logout)
-  document.getElementById("fix-profile-btn")?.addEventListener('click', async () => {
-    addDebugLog("🔧 Ручное создание профиля...", 'info')
-    const result = await forceCreateProfile()
-    if (result) {
-      alert("✅ Профиль создан! Теперь можно отправлять сообщения.")
-      await loadMembers()
-    } else {
-      alert("❌ Ошибка создания профиля. Смотрите панель отладки.")
-    }
+  document.getElementById("google-login-btn")?.addEventListener('click', () => {
+    supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href } })
   })
-
+  
+  document.getElementById("logout-header-btn")?.addEventListener('click', () => {
+    supabase.auth.signOut()
+  })
+  
   document.querySelectorAll(".status-btn").forEach(btn => {
-    btn.onclick = () => {
+    btn.addEventListener('click', () => {
       const status = btn.getAttribute("data-status")
       if (status) updateStatus(status)
-    }
+    })
   })
-
-  const sendBtn = document.getElementById("send-btn")
-  const chatInput = document.getElementById("chat-input")
   
-  if (sendBtn) sendBtn.onclick = sendMessage
-  if (chatInput) {
-    chatInput.onkeypress = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        sendMessage()
-      }
-    }
-  }
-
+  document.getElementById("send-btn")?.addEventListener('click', sendMessage)
+  document.getElementById("chat-input")?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage()
+  })
+  
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute("data-tab")
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"))
+      btn.classList.add("active")
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"))
+      document.getElementById(`tab-${tab}`).classList.remove("hidden")
+    })
+  })
+  
   init()
 })
 </script>
