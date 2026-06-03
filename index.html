@@ -73,7 +73,7 @@
 
     /* Левая панель - Монитор группы */
     .group-panel {
-      width: 320px;
+      width: 350px;
       background: white;
       display: flex;
       flex-direction: column;
@@ -156,15 +156,63 @@
     .member-name {
       font-weight: 600;
       font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .online-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+
+    .online-dot.online {
+      background: #2ecc71;
+      box-shadow: 0 0 5px #2ecc71;
+    }
+
+    .online-dot.offline {
+      background: #95a5a6;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 5px rgba(46, 204, 113, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+      }
     }
 
     .member-status {
       font-size: 12px;
       color: #666;
-      margin-top: 2px;
+      margin-top: 4px;
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .study-timer {
+      font-size: 11px;
+      color: #2ecc71;
+      background: #e8f5e9;
+      padding: 2px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .status-indicator {
@@ -335,25 +383,28 @@
       color: #666;
     }
 
-    .error-message {
-      background: #fee;
-      color: #c00;
+    .stats-bar {
+      background: #f8f9fa;
       padding: 10px;
-      margin: 10px;
-      border-radius: 8px;
-      text-align: center;
+      border-bottom: 1px solid #e0e0e0;
       font-size: 12px;
+      display: flex;
+      justify-content: space-around;
     }
 
-    /* Анимация для статусов */
-    @keyframes statusUpdate {
-      0% { opacity: 0.7; transform: translateX(0); }
-      50% { opacity: 1; transform: translateX(5px); }
-      100% { opacity: 0.7; transform: translateX(0); }
+    .stat-item {
+      text-align: center;
     }
 
-    .status-updated {
-      animation: statusUpdate 0.5s ease;
+    .stat-value {
+      font-weight: bold;
+      font-size: 16px;
+      color: #2c3e50;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 10px;
     }
   </style>
 </head>
@@ -386,6 +437,19 @@
       <!-- Левая панель - список участников -->
       <div class="group-panel">
         <div class="panel-header">👥 Участники группы</div>
+        
+        <!-- Статистика -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <div class="stat-value" id="online-count">0</div>
+            <div class="stat-label">🟢 Онлайн</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="studying-count">0</div>
+            <div class="stat-label">📚 Учатся</div>
+          </div>
+        </div>
+        
         <div class="status-buttons">
           <button class="status-btn status-study" data-status="📚 Учёба">📚 Учёба</button>
           <button class="status-btn status-coffee" data-status="☕ Кофе">☕ Кофе</button>
@@ -428,6 +492,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let CURRENT_USER = null
+let onlineUsers = new Map() // user_id -> last_active timestamp
+let studyTimers = new Map() // user_id -> start_time (только для статуса "Учёба")
+let timerIntervals = new Map() // user_id -> interval ID
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function escapeHtml(str) {
@@ -444,7 +511,76 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
-// ========== РАБОТА С ПРОФИЛЯМИ (УЛУЧШЕННАЯ) ==========
+// Форматирование времени учебы
+function formatStudyTime(seconds) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  
+  if (hours > 0) {
+    return `${hours}ч ${minutes}м`
+  } else if (minutes > 0) {
+    return `${minutes}м ${secs}с`
+  } else {
+    return `${secs}с`
+  }
+}
+
+// Обновление онлайн статуса
+async function updateOnlineStatus() {
+  if (!CURRENT_USER) return
+  
+  const now = Date.now()
+  onlineUsers.set(CURRENT_USER.id, now)
+  
+  // Обновляем в базе данных время последней активности
+  await supabase
+    .from("profiles")
+    .update({ last_active: new Date(now).toISOString() })
+    .eq("id", CURRENT_USER.id)
+  
+  loadMembers()
+}
+
+// Запуск таймера учебы
+function startStudyTimer(userId, status) {
+  // Останавливаем старый таймер если есть
+  if (timerIntervals.has(userId)) {
+    clearInterval(timerIntervals.get(userId))
+    timerIntervals.delete(userId)
+  }
+  
+  // Если статус "Учёба" и таймера нет - запускаем
+  if (status === "📚 Учёба" && !studyTimers.has(userId)) {
+    studyTimers.set(userId, Date.now())
+    
+    // Обновляем счетчик каждую секунду
+    const interval = setInterval(() => {
+      if (studyTimers.has(userId)) {
+        loadMembers() // Перезагружаем для обновления таймера
+      }
+    }, 1000)
+    
+    timerIntervals.set(userId, interval)
+  } 
+  // Если статус не "Учёба" - останавливаем таймер
+  else if (status !== "📚 Учёба" && studyTimers.has(userId)) {
+    studyTimers.delete(userId)
+    if (timerIntervals.has(userId)) {
+      clearInterval(timerIntervals.get(userId))
+      timerIntervals.delete(userId)
+    }
+  }
+}
+
+// Получение времени учебы для пользователя
+function getStudyTime(userId) {
+  if (!studyTimers.has(userId)) return 0
+  const startTime = studyTimers.get(userId)
+  return Math.floor((Date.now() - startTime) / 1000)
+}
+
+// ========== РАБОТА С ПРОФИЛЯМИ ==========
 async function ensureProfile(retryCount = 0) {
   if (!CURRENT_USER) {
     console.error("❌ ensureProfile: Нет CURRENT_USER")
@@ -454,7 +590,6 @@ async function ensureProfile(retryCount = 0) {
   const maxRetries = 3
   
   try {
-    // Сначала проверяем, существует ли профиль
     const { data: profile, error: selectError } = await supabase
       .from("profiles")
       .select("*")
@@ -466,39 +601,36 @@ async function ensureProfile(retryCount = 0) {
       return false
     }
 
-    // Если профиль существует, всё хорошо
     if (profile) {
       console.log("✅ Профиль уже существует:", profile.username)
+      // Запускаем таймер для существующего статуса
+      startStudyTimer(CURRENT_USER.id, profile.status)
       return true
     }
 
-    // Профиля нет - создаём
     console.log("📝 Создаём профиль для пользователя:", CURRENT_USER.id)
     
     const username = CURRENT_USER.user_metadata?.full_name || 
                      CURRENT_USER.email?.split('@')[0] || 
                      "Пользователь"
     
-    const { data: newProfile, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("profiles")
       .insert({
         id: CURRENT_USER.id,
         username: username,
-        status: "🏠 Дома"
+        status: "🏠 Дома",
+        last_active: new Date().toISOString()
       })
-      .select()
-      .single()
 
     if (insertError) {
       console.error(`❌ Ошибка создания профиля (попытка ${retryCount + 1}/${maxRetries}):`, insertError)
       
-      // Если есть конфликт, возможно, профиль уже создан другим запросом
-      if (insertError.code === '23505') { // unique violation
-        console.log("⚠️ Профиль, возможно, уже создан параллельным запросом")
+      if (insertError.code === '23505') {
+        console.log("⚠️ Профиль уже создан")
         return true
       }
       
-      // Повторяем попытку
       if (retryCount < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 1000))
         return await ensureProfile(retryCount + 1)
@@ -507,7 +639,7 @@ async function ensureProfile(retryCount = 0) {
       return false
     }
 
-    console.log("✅ Профиль успешно создан:", newProfile)
+    console.log("✅ Профиль успешно создан")
     return true
     
   } catch (err) {
@@ -538,6 +670,36 @@ async function loadMembers() {
     return
   }
 
+  // Обновляем онлайн статусы (считаем онлайн если активность была менее 2 минут назад)
+  const twoMinutesAgo = Date.now() - 2 * 60 * 1000
+  let onlineCount = 0
+  let studyingCount = 0
+  
+  data.forEach(member => {
+    const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
+    const isOnline = lastActive > twoMinutesAgo
+    if (isOnline) onlineCount++
+    if (member.status === "📚 Учёба") studyingCount++
+    
+    // Запускаем таймеры для всех пользователей со статусом "Учёба"
+    if (member.status === "📚 Учёба") {
+      startStudyTimer(member.id, member.status)
+    } else {
+      // Останавливаем таймер если статус не "Учёба"
+      if (timerIntervals.has(member.id)) {
+        clearInterval(timerIntervals.get(member.id))
+        timerIntervals.delete(member.id)
+      }
+      if (studyTimers.has(member.id)) {
+        studyTimers.delete(member.id)
+      }
+    }
+  })
+  
+  // Обновляем статистику
+  document.getElementById("online-count").textContent = onlineCount
+  document.getElementById("studying-count").textContent = studyingCount
+
   const container = document.getElementById("members-list")
   if (!container) return
 
@@ -554,14 +716,25 @@ async function loadMembers() {
     const isCurrentUser = member.id === CURRENT_USER?.id
     const currentUserClass = isCurrentUser ? 'style="background: #e3f2fd; border-radius: 10px;"' : ''
     
+    // Проверка онлайн статуса
+    const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
+    const isOnline = lastActive > (Date.now() - 2 * 60 * 1000)
+    
+    // Получаем время учебы
+    const studySeconds = getStudyTime(member.id)
+    const studyTimeText = studySeconds > 0 ? `<span class="study-timer">⏱️ ${formatStudyTime(studySeconds)}</span>` : ''
+    
     return `
       <div class="member" ${currentUserClass}>
         <div class="member-avatar">${avatarLetter}</div>
         <div class="member-info">
-          <div class="member-name">${escapeHtml(member.username)}${isCurrentUser ? ' (Вы)' : ''}</div>
+          <div class="member-name">
+            ${escapeHtml(member.username)}${isCurrentUser ? ' (Вы)' : ''}
+            <span class="online-dot ${isOnline ? 'online' : 'offline'}"></span>
+          </div>
           <div class="member-status">
-            <span class="status-indicator status-online"></span>
             <span>${statusEmoji} ${escapeHtml(statusText)}</span>
+            ${studyTimeText}
           </div>
         </div>
       </div>
@@ -598,6 +771,10 @@ async function updateStatus(statusText) {
       alert("Ошибка обновления статуса: " + error.message)
     } else {
       console.log("Статус обновлён на:", statusText)
+      
+      // Управляем таймером учебы
+      startStudyTimer(CURRENT_USER.id, statusText)
+      
       await loadMembers()
       
       const memberElements = document.querySelectorAll(".member")
@@ -658,7 +835,7 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight
 }
 
-// ========== ОТПРАВКА СООБЩЕНИЯ С ПРОВЕРКОЙ ПРОФИЛЯ ==========
+// ========== ОТПРАВКА СООБЩЕНИЯ ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
@@ -671,7 +848,6 @@ async function sendMessage() {
     return
   }
 
-  // ПРОВЕРЯЕМ, ЧТО ПРОФИЛЬ СУЩЕСТВУЕТ ПЕРЕД ОТПРАВКОЙ
   const profileExists = await ensureProfile()
   if (!profileExists) {
     alert("❌ Не удалось создать профиль. Пожалуйста, обновите страницу и попробуйте снова.")
@@ -684,28 +860,20 @@ async function sendMessage() {
   sendBtn.disabled = true
 
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("messages")
       .insert({
         user_id: CURRENT_USER.id,
         message: message
       })
-      .select()
 
     if (error) {
       console.error("❌ Ошибка INSERT:", error)
-      
-      if (error.code === '23503') { // foreign key violation
-        alert("Ошибка связи: профиль пользователя не найден. Попробуйте обновить страницу.")
-        // Пытаемся пересоздать профиль
-        await ensureProfile()
-      } else {
-        alert("Ошибка отправки: " + error.message)
-      }
+      alert("Ошибка отправки: " + error.message)
       return
     }
 
-    console.log("✅ Сообщение отправлено:", data)
+    console.log("✅ Сообщение отправлено")
     input.value = ""
     await loadMessages()
 
@@ -733,6 +901,11 @@ async function loginGoogle() {
 }
 
 async function logout() {
+  // Останавливаем все таймеры
+  timerIntervals.forEach(interval => clearInterval(interval))
+  timerIntervals.clear()
+  studyTimers.clear()
+  
   await supabase.auth.signOut()
   location.reload()
 }
@@ -743,6 +916,16 @@ function showApp() {
   const mainApp = document.getElementById("main-app")
   if (loginScreen) loginScreen.classList.add("hidden")
   if (mainApp) mainApp.classList.remove("hidden")
+  
+  // Запускаем периодическое обновление онлайн статуса
+  setInterval(() => {
+    updateOnlineStatus()
+  }, 30000) // Каждые 30 секунд
+  
+  // Обновляем список участников каждую секунду для таймеров
+  setInterval(() => {
+    loadMembers()
+  }, 1000)
 }
 
 function showLogin() {
@@ -757,7 +940,7 @@ function setupRealtime() {
   const profilesChannel = supabase
     .channel('profiles-changes')
     .on('postgres_changes', 
-      { event: 'UPDATE', schema: 'public', table: 'profiles' }, 
+      { event: '*', schema: 'public', table: 'profiles' }, 
       () => {
         loadMembers()
       }
@@ -791,14 +974,13 @@ async function init() {
     CURRENT_USER = user
     console.log("✅ Пользователь загружен:", CURRENT_USER.id)
     
-    // Пытаемся создать профиль (с повторными попытками)
     const profileCreated = await ensureProfile()
     if (!profileCreated) {
       console.error("⚠️ ВНИМАНИЕ: Не удалось создать профиль!")
-      // Показываем ошибку, но продолжаем (может, профиль уже есть)
     }
     
     showApp()
+    await updateOnlineStatus()
     await loadMembers()
     await loadMessages()
     setupRealtime()
@@ -815,6 +997,7 @@ async function init() {
       console.log("✅ Пользователь вошёл:", CURRENT_USER?.id)
       
       await ensureProfile()
+      await updateOnlineStatus()
       showApp()
       await loadMembers()
       await loadMessages()
