@@ -388,6 +388,7 @@
 
     .debug-log {
       margin: 2px 0;
+      font-size: 10px;
     }
   </style>
 </head>
@@ -471,7 +472,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let CURRENT_USER = null
-let onlineUsers = new Map()
 let studyTimers = new Map()
 let timerIntervals = new Map()
 
@@ -509,20 +509,34 @@ function formatStudyTime(seconds) {
   return `${secs}с`
 }
 
-// ========== ГЛАВНАЯ ФУНКЦИЯ - ПРИНУДИТЕЛЬНОЕ СОЗДАНИЕ ПРОФИЛЯ ==========
+// ========== ГЛАВНЫЙ ФИКС: получение актуального пользователя через getUser() ==========
+async function refreshCurrentUser() {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error) {
+    addDebugLog(`❌ Ошибка getUser(): ${error.message}`, 'error')
+    return null
+  }
+  if (user) {
+    addDebugLog(`✅ getUser() вернул: ID=${user.id}`, 'success')
+    return user
+  }
+  return null
+}
+
+// ========== ПРИНУДИТЕЛЬНОЕ СОЗДАНИЕ ПРОФИЛЯ ==========
 async function forceCreateProfile() {
   if (!CURRENT_USER) {
     addDebugLog("❌ Нет пользователя для создания профиля", 'error')
     return false
   }
   
-  addDebugLog(`🔧 Попытка создать профиль для ID: ${CURRENT_USER.id}`, 'info')
+  addDebugLog(`🔧 Создание профиля для ID: ${CURRENT_USER.id}`, 'info')
   
   const username = CURRENT_USER.user_metadata?.full_name || 
                    CURRENT_USER.email?.split('@')[0] || 
                    "Пользователь"
   
-  // Пробуем вставить с игнорированием конфликта
+  // Используем upsert для безопасного создания/обновления
   const { data, error } = await supabase
     .from("profiles")
     .upsert({
@@ -534,13 +548,13 @@ async function forceCreateProfile() {
     .select()
   
   if (error) {
-    addDebugLog(`❌ Ошибка upsert: ${error.message} (code: ${error.code})`, 'error')
+    addDebugLog(`❌ Ошибка upsert: ${error.message}`, 'error')
     return false
   }
   
-  addDebugLog(`✅ Профиль успешно создан/обновлён: ${username}`, 'success')
+  addDebugLog(`✅ Профиль создан/обновлён: ${username}`, 'success')
   
-  // Проверяем, что профиль действительно появился
+  // Проверяем
   const { data: check } = await supabase
     .from("profiles")
     .select("*")
@@ -548,18 +562,16 @@ async function forceCreateProfile() {
     .single()
   
   if (check) {
-    addDebugLog(`✅ Подтверждено: профиль существует в БД`, 'success')
+    addDebugLog(`✅ Подтверждено: профиль в БД`, 'success')
     return true
-  } else {
-    addDebugLog(`❌ Профиль не найден после создания!`, 'error')
-    return false
   }
+  
+  return false
 }
 
 async function ensureProfile() {
   if (!CURRENT_USER) return false
   
-  // Проверяем существование профиля
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -567,20 +579,20 @@ async function ensureProfile() {
     .maybeSingle()
   
   if (error) {
-    addDebugLog(`❌ Ошибка проверки профиля: ${error.message}`, 'error')
+    addDebugLog(`❌ Ошибка проверки: ${error.message}`, 'error')
     return false
   }
   
   if (data) {
-    addDebugLog(`✅ Профиль найден: ${data.username} (статус: ${data.status})`, 'success')
+    addDebugLog(`✅ Профиль найден: ${data.username}`, 'success')
     return true
   }
   
-  addDebugLog(`⚠️ Профиль НЕ НАЙДЕН, создаём...`, 'info')
+  addDebugLog(`⚠️ Профиль не найден, создаём...`, 'info')
   return await forceCreateProfile()
 }
 
-// ========== РАБОТА СО СТАТУСАМИ И ТАЙМЕРАМИ ==========
+// ========== ТАЙМЕРЫ УЧЁБЫ ==========
 function startStudyTimer(userId, status) {
   if (timerIntervals.has(userId)) {
     clearInterval(timerIntervals.get(userId))
@@ -589,17 +601,13 @@ function startStudyTimer(userId, status) {
   
   if (status === "📚 Учёба" && !studyTimers.has(userId)) {
     studyTimers.set(userId, Date.now())
-    addDebugLog(`⏱️ Запущен таймер учёбы для ${userId}`, 'info')
+    addDebugLog(`⏱️ Таймер учёбы запущен для ${userId}`, 'info')
     
     const interval = setInterval(() => {
-      if (studyTimers.has(userId)) {
-        loadMembers()
-      }
+      if (studyTimers.has(userId)) loadMembers()
     }, 1000)
     timerIntervals.set(userId, interval)
   } else if (status !== "📚 Учёба" && studyTimers.has(userId)) {
-    const duration = Math.floor((Date.now() - studyTimers.get(userId)) / 1000)
-    addDebugLog(`⏹️ Остановлен таймер учёбы для ${userId}, длительность: ${duration}с`, 'info')
     studyTimers.delete(userId)
     if (timerIntervals.has(userId)) {
       clearInterval(timerIntervals.get(userId))
@@ -622,7 +630,7 @@ async function loadMembers() {
     .order("username")
 
   if (error) {
-    addDebugLog(`❌ Ошибка загрузки участников: ${error.message}`, 'error')
+    addDebugLog(`❌ Ошибка загрузки: ${error.message}`, 'error')
     return
   }
 
@@ -634,10 +642,7 @@ async function loadMembers() {
     const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
     if (lastActive > twoMinutesAgo) onlineCount++
     if (member.status === "📚 Учёба") studyingCount++
-    
-    if (member.status === "📚 Учёба") {
-      startStudyTimer(member.id, member.status)
-    }
+    if (member.status === "📚 Учёба") startStudyTimer(member.id, member.status)
   })
   
   document.getElementById("online-count").textContent = onlineCount
@@ -645,11 +650,6 @@ async function loadMembers() {
 
   const container = document.getElementById("members-list")
   if (!container) return
-
-  if (!data || data.length === 0) {
-    container.innerHTML = '<div class="loading">Нет участников</div>'
-    return
-  }
 
   container.innerHTML = data.map(member => {
     const avatarLetter = (member.username?.[0] || '?').toUpperCase()
@@ -682,40 +682,26 @@ async function loadMembers() {
   }).join("")
 
   const me = data.find(m => m.id === CURRENT_USER?.id)
-  if (me) {
-    document.getElementById("header-username").textContent = me.username
-  }
+  if (me) document.getElementById("header-username").textContent = me.username
 }
 
 async function updateStatus(statusText) {
-  if (!CURRENT_USER) {
-    alert("Сначала войдите в систему")
-    return
-  }
-
-  addDebugLog(`🔄 Смена статуса на: ${statusText}`, 'info')
+  if (!CURRENT_USER) return alert("Сначала войдите")
   
-  const buttons = document.querySelectorAll(".status-btn")
-  buttons.forEach(btn => btn.style.opacity = "0.5")
+  addDebugLog(`🔄 Смена статуса: ${statusText}`, 'info')
   
-  try {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ status: statusText })
-      .eq("id", CURRENT_USER.id)
+  const { error } = await supabase
+    .from("profiles")
+    .update({ status: statusText })
+    .eq("id", CURRENT_USER.id)
 
-    if (error) {
-      addDebugLog(`❌ Ошибка обновления статуса: ${error.message}`, 'error')
-      alert("Ошибка обновления статуса: " + error.message)
-    } else {
-      addDebugLog(`✅ Статус обновлён на: ${statusText}`, 'success')
-      startStudyTimer(CURRENT_USER.id, statusText)
-      await loadMembers()
-    }
-  } catch (err) {
-    addDebugLog(`❌ Ошибка: ${err.message}`, 'error')
-  } finally {
-    buttons.forEach(btn => btn.style.opacity = "1")
+  if (error) {
+    addDebugLog(`❌ Ошибка: ${error.message}`, 'error')
+    alert("Ошибка: " + error.message)
+  } else {
+    addDebugLog(`✅ Статус обновлён`, 'success')
+    startStudyTimer(CURRENT_USER.id, statusText)
+    await loadMembers()
   }
 }
 
@@ -757,25 +743,29 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight
 }
 
+// ========== ОТПРАВКА С ПРОВЕРКОЙ (ГЛАВНЫЙ ФИКС) ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
 
   if (!message) return
 
-  if (!CURRENT_USER?.id) {
-    addDebugLog("❌ НЕТ USER ID", 'error')
-    alert("Ошибка: пользователь не авторизован.")
+  // 🔥 КРИТИЧЕСКАЯ ПРОВЕРКА: обновляем пользователя перед отправкой
+  const freshUser = await refreshCurrentUser()
+  if (!freshUser) {
+    addDebugLog("❌ НЕТ ПОЛЬЗОВАТЕЛЯ! Нужно перелогиниться.", 'error')
+    alert("Ошибка: пользователь не авторизован. Выйдите и войдите снова.")
     return
   }
-
-  addDebugLog(`📤 Отправка сообщения от ${CURRENT_USER.id}: "${message}"`, 'info')
   
-  // ПРЯМАЯ ПРОВЕРКА ПРОФИЛЯ
-  const profileExists = await ensureProfile()
-  if (!profileExists) {
-    addDebugLog(`❌ ПРОФИЛЬ НЕ СУЩЕСТВУЕТ! Попробуйте нажать кнопку "Создать профиль"`, 'error')
-    alert("❌ Ваш профиль не найден в базе данных! Нажмите кнопку 'Создать профиль' и попробуйте снова.")
+  CURRENT_USER = freshUser
+  addDebugLog(`📤 Отправка от ${CURRENT_USER.id}: "${message.substring(0, 30)}"`, 'info')
+  
+  // Проверяем/создаём профиль
+  const profileOk = await ensureProfile()
+  if (!profileOk) {
+    addDebugLog(`❌ ПРОФИЛЬ НЕ СУЩЕСТВУЕТ! Нажмите "Создать профиль"`, 'error')
+    alert("❌ Профиль не найден! Нажмите оранжевую кнопку 'Создать профиль'")
     return
   }
 
@@ -795,20 +785,20 @@ async function sendMessage() {
       addDebugLog(`❌ Ошибка INSERT: ${error.message} (code: ${error.code})`, 'error')
       
       if (error.code === '23503') {
-        addDebugLog(`🔑 Ошибка внешнего ключа! Пользователь ${CURRENT_USER.id} не найден в таблице profiles`, 'error')
-        alert("❌ Ошибка: ваш профиль отсутствует в базе. Нажмите кнопку 'Создать профиль'")
+        addDebugLog(`🔑 FK ошибка! Пользователь ${CURRENT_USER.id} не в profiles`, 'error')
+        alert("❌ Ошибка: профиль отсутствует. Нажмите 'Создать профиль'")
       } else {
-        alert("Ошибка отправки: " + error.message)
+        alert("Ошибка: " + error.message)
       }
       return
     }
 
-    addDebugLog(`✅ Сообщение отправлено успешно!`, 'success')
+    addDebugLog(`✅ Сообщение отправлено!`, 'success')
     input.value = ""
     await loadMessages()
 
   } catch (err) {
-    addDebugLog(`❌ Исключение: ${err.message}`, 'error')
+    addDebugLog(`❌ Ошибка: ${err.message}`, 'error')
   } finally {
     sendBtn.disabled = false
     input.focus()
@@ -817,26 +807,20 @@ async function sendMessage() {
 
 async function updateOnlineStatus() {
   if (!CURRENT_USER) return
-  
   await supabase
     .from("profiles")
     .update({ last_active: new Date().toISOString() })
     .eq("id", CURRENT_USER.id)
-  
   loadMembers()
 }
 
-// ========== АВТОРИЗАЦИЯ ==========
+// ========== АВТОРИЗАЦИЯ (С ИСПРАВЛЕНИЕМ) ==========
 async function loginGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: {
-      redirectTo: window.location.href
-    }
+    options: { redirectTo: window.location.href }
   })
-  if (error) {
-    addDebugLog(`❌ Ошибка входа: ${error.message}`, 'error')
-  }
+  if (error) addDebugLog(`❌ Ошибка входа: ${error.message}`, 'error')
 }
 
 async function logout() {
@@ -850,7 +834,6 @@ async function logout() {
 function showApp() {
   document.getElementById("login-screen").classList.add("hidden")
   document.getElementById("main-app").classList.remove("hidden")
-  
   setInterval(() => updateOnlineStatus(), 30000)
   setInterval(() => loadMembers(), 1000)
 }
@@ -871,48 +854,45 @@ function setupRealtime() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => loadMessages())
     .subscribe()
     
-  addDebugLog("✅ Realtime подписки настроены", 'success')
+  addDebugLog("✅ Realtime подключён", 'success')
 }
 
+// ========== ИНИЦИАЛИЗАЦИЯ (ГЛАВНЫЙ ФИКС) ==========
 async function init() {
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  // 🔥 ВАЖНО: используем getUser() вместо session.user
+  const freshUser = await refreshCurrentUser()
 
-  if (userError) {
-    addDebugLog(`❌ Ошибка получения пользователя: ${userError.message}`, 'error')
-    showLogin()
-    return
-  }
-
-  if (user) {
-    CURRENT_USER = user
-    addDebugLog(`👤 Пользователь загружен: ID=${CURRENT_USER.id}, Email=${CURRENT_USER.email}`, 'success')
+  if (freshUser) {
+    CURRENT_USER = freshUser
+    addDebugLog(`👤 Инициализация: ID=${CURRENT_USER.id}`, 'success')
     
-    const profileOk = await ensureProfile()
-    if (!profileOk) {
-      addDebugLog(`⚠️ ВНИМАНИЕ: Профиль не создан автоматически! Нажмите кнопку "Создать профиль"`, 'error')
-    }
-    
+    await ensureProfile()
     showApp()
     await updateOnlineStatus()
     await loadMembers()
     await loadMessages()
     setupRealtime()
   } else {
+    addDebugLog(`👤 Пользователь не авторизован`, 'info')
     showLogin()
   }
 
+  // Слушаем изменения авторизации
   supabase.auth.onAuthStateChange(async (event, session) => {
-    addDebugLog(`📡 Auth state change: ${event}`, 'info')
+    addDebugLog(`📡 Auth event: ${event}`, 'info')
     
     if (event === 'SIGNED_IN') {
-      const { data: { user } } = await supabase.auth.getUser()
-      CURRENT_USER = user
-      await ensureProfile()
-      await updateOnlineStatus()
-      showApp()
-      await loadMembers()
-      await loadMessages()
-      setupRealtime()
+      // 🔥 ВАЖНО: обновляем пользователя через getUser()
+      const newUser = await refreshCurrentUser()
+      if (newUser) {
+        CURRENT_USER = newUser
+        await ensureProfile()
+        await updateOnlineStatus()
+        showApp()
+        await loadMembers()
+        await loadMessages()
+        setupRealtime()
+      }
     } else if (event === 'SIGNED_OUT') {
       CURRENT_USER = null
       showLogin()
@@ -928,10 +908,10 @@ document.addEventListener('DOMContentLoaded', () => {
     addDebugLog("🔧 Ручное создание профиля...", 'info')
     const result = await forceCreateProfile()
     if (result) {
-      alert("✅ Профиль успешно создан! Теперь можно отправлять сообщения.")
+      alert("✅ Профиль создан! Теперь можно отправлять сообщения.")
       await loadMembers()
     } else {
-      alert("❌ Не удалось создать профиль. Проверьте консоль.")
+      alert("❌ Ошибка создания профиля. Смотрите панель отладки.")
     }
   })
 
