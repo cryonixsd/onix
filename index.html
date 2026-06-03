@@ -335,6 +335,16 @@
       color: #666;
     }
 
+    .error-message {
+      background: #fee;
+      color: #c00;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 12px;
+    }
+
     /* Анимация для статусов */
     @keyframes statusUpdate {
       0% { opacity: 0.7; transform: translateX(0); }
@@ -434,35 +444,75 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
-// ========== РАБОТА С ПРОФИЛЯМИ ==========
-async function ensureProfile() {
-  if (!CURRENT_USER) return
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", CURRENT_USER.id)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Ошибка профиля:", error)
-    return
+// ========== РАБОТА С ПРОФИЛЯМИ (УЛУЧШЕННАЯ) ==========
+async function ensureProfile(retryCount = 0) {
+  if (!CURRENT_USER) {
+    console.error("❌ ensureProfile: Нет CURRENT_USER")
+    return false
   }
 
-  if (!profile) {
+  const maxRetries = 3
+  
+  try {
+    // Сначала проверяем, существует ли профиль
+    const { data: profile, error: selectError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", CURRENT_USER.id)
+      .maybeSingle()
+
+    if (selectError) {
+      console.error("❌ Ошибка при проверке профиля:", selectError)
+      return false
+    }
+
+    // Если профиль существует, всё хорошо
+    if (profile) {
+      console.log("✅ Профиль уже существует:", profile.username)
+      return true
+    }
+
+    // Профиля нет - создаём
+    console.log("📝 Создаём профиль для пользователя:", CURRENT_USER.id)
+    
     const username = CURRENT_USER.user_metadata?.full_name || 
                      CURRENT_USER.email?.split('@')[0] || 
                      "Пользователь"
     
-    const { error: insertError } = await supabase.from("profiles").insert({
-      id: CURRENT_USER.id,
-      username: username,
-      status: "🏠 Дома"  // Статус по умолчанию
-    })
-    
+    const { data: newProfile, error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        id: CURRENT_USER.id,
+        username: username,
+        status: "🏠 Дома"
+      })
+      .select()
+      .single()
+
     if (insertError) {
-      console.error("Ошибка создания профиля:", insertError)
+      console.error(`❌ Ошибка создания профиля (попытка ${retryCount + 1}/${maxRetries}):`, insertError)
+      
+      // Если есть конфликт, возможно, профиль уже создан другим запросом
+      if (insertError.code === '23505') { // unique violation
+        console.log("⚠️ Профиль, возможно, уже создан параллельным запросом")
+        return true
+      }
+      
+      // Повторяем попытку
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return await ensureProfile(retryCount + 1)
+      }
+      
+      return false
     }
+
+    console.log("✅ Профиль успешно создан:", newProfile)
+    return true
+    
+  } catch (err) {
+    console.error("❌ Исключение в ensureProfile:", err)
+    return false
   }
 }
 
@@ -501,7 +551,6 @@ async function loadMembers() {
     const statusText = member.status || "🏠 Дома"
     const statusEmoji = getStatusEmoji(statusText)
     
-    // Подсветка текущего пользователя
     const isCurrentUser = member.id === CURRENT_USER?.id
     const currentUserClass = isCurrentUser ? 'style="background: #e3f2fd; border-radius: 10px;"' : ''
     
@@ -519,7 +568,6 @@ async function loadMembers() {
     `
   }).join("")
 
-  // Обновляем имя в шапке
   const me = data.find(m => m.id === CURRENT_USER?.id)
   if (me) {
     const headerUsername = document.getElementById("header-username")
@@ -536,7 +584,6 @@ async function updateStatus(statusText) {
     return
   }
 
-  // Показываем индикатор загрузки на кнопках
   const buttons = document.querySelectorAll(".status-btn")
   buttons.forEach(btn => btn.style.opacity = "0.5")
   
@@ -551,10 +598,8 @@ async function updateStatus(statusText) {
       alert("Ошибка обновления статуса: " + error.message)
     } else {
       console.log("Статус обновлён на:", statusText)
-      // Немедленно обновляем список участников
       await loadMembers()
       
-      // Добавляем визуальную обратную связь
       const memberElements = document.querySelectorAll(".member")
       memberElements.forEach(el => {
         if (el.textContent.includes("(Вы)")) {
@@ -610,11 +655,10 @@ async function loadMessages() {
     `
   }).join("")
 
-  // Скролл вниз
   container.scrollTop = container.scrollHeight
 }
 
-// ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ ==========
+// ========== ОТПРАВКА СООБЩЕНИЯ С ПРОВЕРКОЙ ПРОФИЛЯ ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
@@ -623,12 +667,18 @@ async function sendMessage() {
 
   if (!CURRENT_USER?.id) {
     console.log("❌ НЕТ USER ID", CURRENT_USER)
-    alert("Ошибка: пользователь не авторизован. Попробуйте обновить страницу.")
+    alert("Ошибка: пользователь не авторизован.")
     return
   }
 
-  console.log("✅ Отправка от пользователя:", CURRENT_USER.id)
-  console.log("👤 Имя пользователя:", CURRENT_USER.user_metadata?.full_name || CURRENT_USER.email)
+  // ПРОВЕРЯЕМ, ЧТО ПРОФИЛЬ СУЩЕСТВУЕТ ПЕРЕД ОТПРАВКОЙ
+  const profileExists = await ensureProfile()
+  if (!profileExists) {
+    alert("❌ Не удалось создать профиль. Пожалуйста, обновите страницу и попробуйте снова.")
+    return
+  }
+
+  console.log("✅ Отправка сообщения от:", CURRENT_USER.id)
 
   const sendBtn = document.getElementById("send-btn")
   sendBtn.disabled = true
@@ -636,17 +686,22 @@ async function sendMessage() {
   try {
     const { data, error } = await supabase
       .from("messages")
-      .insert([
-        {
-          user_id: CURRENT_USER.id,
-          message: message
-        }
-      ])
+      .insert({
+        user_id: CURRENT_USER.id,
+        message: message
+      })
       .select()
 
     if (error) {
       console.error("❌ Ошибка INSERT:", error)
-      alert("Ошибка отправки: " + error.message)
+      
+      if (error.code === '23503') { // foreign key violation
+        alert("Ошибка связи: профиль пользователя не найден. Попробуйте обновить страницу.")
+        // Пытаемся пересоздать профиль
+        await ensureProfile()
+      } else {
+        alert("Ошибка отправки: " + error.message)
+      }
       return
     }
 
@@ -697,27 +752,24 @@ function showLogin() {
   if (mainApp) mainApp.classList.add("hidden")
 }
 
-// ========== РЕАЛЬНОЕ ВРЕМЯ (Realtime) ==========
+// ========== РЕАЛЬНОЕ ВРЕМЯ ==========
 function setupRealtime() {
-  // Слушаем изменения в таблице profiles (статусы)
   const profilesChannel = supabase
     .channel('profiles-changes')
     .on('postgres_changes', 
       { event: 'UPDATE', schema: 'public', table: 'profiles' }, 
-      (payload) => {
-        console.log("Статус обновлён:", payload.new.username, payload.new.status)
-        loadMembers() // Обновляем список участников
+      () => {
+        loadMembers()
       }
     )
     .subscribe()
 
-  // Слушаем новые сообщения в чате
   const messagesChannel = supabase
     .channel('messages-changes')
     .on('postgres_changes', 
       { event: 'INSERT', schema: 'public', table: 'messages' }, 
       () => {
-        loadMessages() // Загружаем новые сообщения
+        loadMessages()
       }
     )
     .subscribe()
@@ -725,9 +777,8 @@ function setupRealtime() {
   console.log("Realtime подписки настроены")
 }
 
-// ========== ИНИЦИАЛИЗАЦИЯ (ИСПРАВЛЕНА) ==========
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
-  // ✅ ПРАВИЛЬНЫЙ способ получить пользователя
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (userError) {
@@ -738,9 +789,16 @@ async function init() {
 
   if (user) {
     CURRENT_USER = user
-    console.log("✅ Пользователь загружен:", CURRENT_USER.id, CURRENT_USER.email)
+    console.log("✅ Пользователь загружен:", CURRENT_USER.id)
+    
+    // Пытаемся создать профиль (с повторными попытками)
+    const profileCreated = await ensureProfile()
+    if (!profileCreated) {
+      console.error("⚠️ ВНИМАНИЕ: Не удалось создать профиль!")
+      // Показываем ошибку, но продолжаем (может, профиль уже есть)
+    }
+    
     showApp()
-    await ensureProfile()
     await loadMembers()
     await loadMessages()
     setupRealtime()
@@ -748,24 +806,22 @@ async function init() {
     showLogin()
   }
 
-  // ✅ ПРАВИЛЬНЫЙ способ слушать изменения авторизации
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth state change:", event)
     
     if (event === 'SIGNED_IN') {
-      // Получаем актуального пользователя
       const { data: { user } } = await supabase.auth.getUser()
       CURRENT_USER = user
       console.log("✅ Пользователь вошёл:", CURRENT_USER?.id)
-      showApp()
+      
       await ensureProfile()
+      showApp()
       await loadMembers()
       await loadMessages()
       setupRealtime()
     } else if (event === 'SIGNED_OUT') {
       CURRENT_USER = null
       showLogin()
-      // Перезагружаем страницу для очистки состояния
       setTimeout(() => location.reload(), 100)
     }
   })
@@ -773,15 +829,12 @@ async function init() {
 
 // ========== НАВЕШИВАЕМ ОБРАБОТЧИКИ ==========
 document.addEventListener('DOMContentLoaded', () => {
-  // Кнопка входа
   const loginBtn = document.getElementById("google-login-btn")
   if (loginBtn) loginBtn.onclick = loginGoogle
 
-  // Кнопка выхода
   const logoutBtn = document.getElementById("logout-header-btn")
   if (logoutBtn) logoutBtn.onclick = logout
 
-  // Кнопки статусов
   const statusButtons = document.querySelectorAll(".status-btn")
   statusButtons.forEach(btn => {
     btn.onclick = () => {
@@ -790,7 +843,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })
 
-  // Отправка сообщения
   const sendBtn = document.getElementById("send-btn")
   const chatInput = document.getElementById("chat-input")
   
@@ -804,7 +856,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Запуск
   init()
 })
 </script>
