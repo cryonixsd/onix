@@ -614,20 +614,21 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight
 }
 
-// ========== ОБНОВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ ==========
+// ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
 
   if (!message) return
 
-  if (!CURRENT_USER) {
-    alert("Пользователь не авторизован")
+  if (!CURRENT_USER?.id) {
+    console.log("❌ НЕТ USER ID", CURRENT_USER)
+    alert("Ошибка: пользователь не авторизован. Попробуйте обновить страницу.")
     return
   }
 
-  console.log("CURRENT_USER =", CURRENT_USER)
-  console.log("CURRENT_USER.id =", CURRENT_USER.id)
+  console.log("✅ Отправка от пользователя:", CURRENT_USER.id)
+  console.log("👤 Имя пользователя:", CURRENT_USER.user_metadata?.full_name || CURRENT_USER.email)
 
   const sendBtn = document.getElementById("send-btn")
   sendBtn.disabled = true
@@ -643,22 +644,22 @@ async function sendMessage() {
       ])
       .select()
 
-    console.log("INSERT DATA:", data)
-    console.log("INSERT ERROR:", error)
-
     if (error) {
-      alert("Ошибка: " + error.message)
+      console.error("❌ Ошибка INSERT:", error)
+      alert("Ошибка отправки: " + error.message)
       return
     }
 
+    console.log("✅ Сообщение отправлено:", data)
     input.value = ""
     await loadMessages()
 
   } catch (err) {
-    console.error(err)
+    console.error("❌ Исключение:", err)
     alert("Ошибка: " + err.message)
   } finally {
     sendBtn.disabled = false
+    input.focus()
   }
 }
 
@@ -724,13 +725,20 @@ function setupRealtime() {
   console.log("Realtime подписки настроены")
 }
 
-// ========== ИНИЦИАЛИЗАЦИЯ ==========
+// ========== ИНИЦИАЛИЗАЦИЯ (ИСПРАВЛЕНА) ==========
 async function init() {
-  // Проверяем текущую сессию
-  const { data: { session } } = await supabase.auth.getSession()
+  // ✅ ПРАВИЛЬНЫЙ способ получить пользователя
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (session) {
-    CURRENT_USER = session.user
+  if (userError) {
+    console.error("Ошибка получения пользователя:", userError)
+    showLogin()
+    return
+  }
+
+  if (user) {
+    CURRENT_USER = user
+    console.log("✅ Пользователь загружен:", CURRENT_USER.id, CURRENT_USER.email)
     showApp()
     await ensureProfile()
     await loadMembers()
@@ -740,11 +748,15 @@ async function init() {
     showLogin()
   }
 
-  // Слушаем изменения авторизации
+  // ✅ ПРАВИЛЬНЫЙ способ слушать изменения авторизации
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth state change:", event)
-    if (event === 'SIGNED_IN' && session) {
-      CURRENT_USER = session.user
+    
+    if (event === 'SIGNED_IN') {
+      // Получаем актуального пользователя
+      const { data: { user } } = await supabase.auth.getUser()
+      CURRENT_USER = user
+      console.log("✅ Пользователь вошёл:", CURRENT_USER?.id)
       showApp()
       await ensureProfile()
       await loadMembers()
