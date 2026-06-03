@@ -614,45 +614,51 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight
 }
 
+// ========== ОБНОВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ СООБЩЕНИЯ ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
 
   if (!message) return
+
   if (!CURRENT_USER) {
-    alert("Сначала войдите в систему!")
+    alert("Пользователь не авторизован")
     return
   }
 
+  console.log("CURRENT_USER =", CURRENT_USER)
+  console.log("CURRENT_USER.id =", CURRENT_USER.id)
+
   const sendBtn = document.getElementById("send-btn")
   sendBtn.disabled = true
-  input.disabled = true
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("messages")
-      .insert({
-        user_id: CURRENT_USER.id,
-        message: message
-      })
+      .insert([
+        {
+          user_id: CURRENT_USER.id,
+          message: message
+        }
+      ])
+      .select()
+
+    console.log("INSERT DATA:", data)
+    console.log("INSERT ERROR:", error)
 
     if (error) {
-      console.error("Ошибка отправки:", error)
-      alert("Ошибка отправки: " + error.message)
+      alert("Ошибка: " + error.message)
       return
     }
 
     input.value = ""
     await loadMessages()
-    
-    // Фокус обратно на поле ввода
-    input.focus()
+
   } catch (err) {
-    console.error("Ошибка:", err)
-    alert("Не удалось отправить сообщение")
+    console.error(err)
+    alert("Ошибка: " + err.message)
   } finally {
     sendBtn.disabled = false
-    input.disabled = false
   }
 }
 
