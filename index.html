@@ -20,7 +20,6 @@
       flex-direction: column;
     }
 
-    /* Шапка */
     .header {
       background: white;
       border-bottom: 1px solid #e0e0e0;
@@ -58,11 +57,24 @@
       font-size: 12px;
     }
 
+    .fix-profile-btn {
+      background: #f39c12;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .fix-profile-btn:hover {
+      background: #e67e22;
+    }
+
     .logout-header-btn:hover {
       background: #c0392b;
     }
 
-    /* Основной контейнер */
     .main-container {
       display: flex;
       flex: 1;
@@ -71,7 +83,6 @@
       overflow: hidden;
     }
 
-    /* Левая панель - Монитор группы */
     .group-panel {
       width: 350px;
       background: white;
@@ -180,18 +191,9 @@
     }
 
     @keyframes pulse {
-      0% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
-      }
-      70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 5px rgba(46, 204, 113, 0);
-      }
-      100% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
-      }
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(46, 204, 113, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
     }
 
     .member-status {
@@ -215,17 +217,6 @@
       gap: 4px;
     }
 
-    .status-indicator {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .status-online { background: #2ecc71; }
-    .status-offline { background: #95a5a6; }
-
-    /* Правая панель - Чат */
     .chat-panel {
       flex: 1;
       background: white;
@@ -309,10 +300,6 @@
       font-size: 14px;
     }
 
-    .chat-input:focus {
-      border-color: #3498db;
-    }
-
     .send-btn {
       background: #3498db;
       color: white;
@@ -321,10 +308,6 @@
       border-radius: 25px;
       cursor: pointer;
       font-weight: bold;
-    }
-
-    .send-btn:hover {
-      background: #2980b9;
     }
 
     .send-btn:disabled {
@@ -336,7 +319,6 @@
       display: none !important;
     }
 
-    /* Логин экран */
     .login-screen {
       position: fixed;
       top: 0;
@@ -358,11 +340,6 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
-    .login-card h2 {
-      margin-bottom: 20px;
-      color: #2c3e50;
-    }
-
     .google-login-btn {
       background: #4285F4;
       color: white;
@@ -371,10 +348,6 @@
       border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0 auto;
     }
 
     .loading {
@@ -402,9 +375,19 @@
       color: #2c3e50;
     }
 
-    .stat-label {
-      color: #666;
+    .debug-panel {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 8px;
       font-size: 10px;
+      font-family: monospace;
+      border-top: 1px solid #34495e;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .debug-log {
+      margin: 2px 0;
     }
   </style>
 </head>
@@ -412,7 +395,6 @@
 <body>
 
 <div id="app">
-  <!-- Экран входа -->
   <div id="login-screen" class="login-screen">
     <div class="login-card">
       <h2>📱 Монитор группы</h2>
@@ -423,22 +405,19 @@
     </div>
   </div>
 
-  <!-- Основное приложение -->
   <div id="main-app" class="hidden">
     <div class="header">
       <div class="logo">📊 Монитор группы</div>
       <div class="user-info">
         <span class="user-name" id="header-username">Загрузка...</span>
+        <button class="fix-profile-btn" id="fix-profile-btn">🔧 Создать профиль</button>
         <button class="logout-header-btn" id="logout-header-btn">Выйти</button>
       </div>
     </div>
 
     <div class="main-container">
-      <!-- Левая панель - список участников -->
       <div class="group-panel">
         <div class="panel-header">👥 Участники группы</div>
-        
-        <!-- Статистика -->
         <div class="stats-bar">
           <div class="stat-item">
             <div class="stat-value" id="online-count">0</div>
@@ -449,7 +428,6 @@
             <div class="stat-label">📚 Учатся</div>
           </div>
         </div>
-        
         <div class="status-buttons">
           <button class="status-btn status-study" data-status="📚 Учёба">📚 Учёба</button>
           <button class="status-btn status-coffee" data-status="☕ Кофе">☕ Кофе</button>
@@ -461,7 +439,6 @@
         </div>
       </div>
 
-      <!-- Правая панель - чат -->
       <div class="chat-panel">
         <div class="chat-header">💬 Общий чат</div>
         <div class="chat-messages" id="chat-messages">
@@ -473,13 +450,15 @@
         </div>
       </div>
     </div>
+    <div class="debug-panel" id="debug-panel">
+      <div>🔍 Отладка:</div>
+    </div>
   </div>
 </div>
 
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
-// ========== НАСТРОЙКИ SUPABASE ==========
 const SUPABASE_URL = "https://lxceruhmesknzyjyyoqj.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2VydWhtZXNrbnp5anl5b3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODQ1MDQsImV4cCI6MjA5MjI2MDUwNH0.DyYepxX8QrEvaGp3-no0meXt2y6nOHigS56c4AldFjw"
 
@@ -492,11 +471,20 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let CURRENT_USER = null
-let onlineUsers = new Map() // user_id -> last_active timestamp
-let studyTimers = new Map() // user_id -> start_time (только для статуса "Учёба")
-let timerIntervals = new Map() // user_id -> interval ID
+let onlineUsers = new Map()
+let studyTimers = new Map()
+let timerIntervals = new Map()
 
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+function addDebugLog(message, type = 'info') {
+  const panel = document.getElementById('debug-panel')
+  if (!panel) return
+  const time = new Date().toLocaleTimeString()
+  const color = type === 'error' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#ecf0f1'
+  panel.innerHTML += `<div class="debug-log" style="color: ${color}">[${time}] ${message}</div>`
+  panel.scrollTop = panel.scrollHeight
+  console.log(message)
+}
+
 function escapeHtml(str) {
   if (!str) return ''
   return str.replace(/[&<>]/g, function(m) {
@@ -511,60 +499,107 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Форматирование времени учебы
 function formatStudyTime(seconds) {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const secs = seconds % 60
   
-  if (hours > 0) {
-    return `${hours}ч ${minutes}м`
-  } else if (minutes > 0) {
-    return `${minutes}м ${secs}с`
+  if (hours > 0) return `${hours}ч ${minutes}м`
+  if (minutes > 0) return `${minutes}м ${secs}с`
+  return `${secs}с`
+}
+
+// ========== ГЛАВНАЯ ФУНКЦИЯ - ПРИНУДИТЕЛЬНОЕ СОЗДАНИЕ ПРОФИЛЯ ==========
+async function forceCreateProfile() {
+  if (!CURRENT_USER) {
+    addDebugLog("❌ Нет пользователя для создания профиля", 'error')
+    return false
+  }
+  
+  addDebugLog(`🔧 Попытка создать профиль для ID: ${CURRENT_USER.id}`, 'info')
+  
+  const username = CURRENT_USER.user_metadata?.full_name || 
+                   CURRENT_USER.email?.split('@')[0] || 
+                   "Пользователь"
+  
+  // Пробуем вставить с игнорированием конфликта
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert({
+      id: CURRENT_USER.id,
+      username: username,
+      status: "🏠 Дома",
+      last_active: new Date().toISOString()
+    }, { onConflict: 'id' })
+    .select()
+  
+  if (error) {
+    addDebugLog(`❌ Ошибка upsert: ${error.message} (code: ${error.code})`, 'error')
+    return false
+  }
+  
+  addDebugLog(`✅ Профиль успешно создан/обновлён: ${username}`, 'success')
+  
+  // Проверяем, что профиль действительно появился
+  const { data: check } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", CURRENT_USER.id)
+    .single()
+  
+  if (check) {
+    addDebugLog(`✅ Подтверждено: профиль существует в БД`, 'success')
+    return true
   } else {
-    return `${secs}с`
+    addDebugLog(`❌ Профиль не найден после создания!`, 'error')
+    return false
   }
 }
 
-// Обновление онлайн статуса
-async function updateOnlineStatus() {
-  if (!CURRENT_USER) return
+async function ensureProfile() {
+  if (!CURRENT_USER) return false
   
-  const now = Date.now()
-  onlineUsers.set(CURRENT_USER.id, now)
-  
-  // Обновляем в базе данных время последней активности
-  await supabase
+  // Проверяем существование профиля
+  const { data, error } = await supabase
     .from("profiles")
-    .update({ last_active: new Date(now).toISOString() })
+    .select("*")
     .eq("id", CURRENT_USER.id)
+    .maybeSingle()
   
-  loadMembers()
+  if (error) {
+    addDebugLog(`❌ Ошибка проверки профиля: ${error.message}`, 'error')
+    return false
+  }
+  
+  if (data) {
+    addDebugLog(`✅ Профиль найден: ${data.username} (статус: ${data.status})`, 'success')
+    return true
+  }
+  
+  addDebugLog(`⚠️ Профиль НЕ НАЙДЕН, создаём...`, 'info')
+  return await forceCreateProfile()
 }
 
-// Запуск таймера учебы
+// ========== РАБОТА СО СТАТУСАМИ И ТАЙМЕРАМИ ==========
 function startStudyTimer(userId, status) {
-  // Останавливаем старый таймер если есть
   if (timerIntervals.has(userId)) {
     clearInterval(timerIntervals.get(userId))
     timerIntervals.delete(userId)
   }
   
-  // Если статус "Учёба" и таймера нет - запускаем
   if (status === "📚 Учёба" && !studyTimers.has(userId)) {
     studyTimers.set(userId, Date.now())
+    addDebugLog(`⏱️ Запущен таймер учёбы для ${userId}`, 'info')
     
-    // Обновляем счетчик каждую секунду
     const interval = setInterval(() => {
       if (studyTimers.has(userId)) {
-        loadMembers() // Перезагружаем для обновления таймера
+        loadMembers()
       }
     }, 1000)
-    
     timerIntervals.set(userId, interval)
-  } 
-  // Если статус не "Учёба" - останавливаем таймер
-  else if (status !== "📚 Учёба" && studyTimers.has(userId)) {
+  } else if (status !== "📚 Учёба" && studyTimers.has(userId)) {
+    const duration = Math.floor((Date.now() - studyTimers.get(userId)) / 1000)
+    addDebugLog(`⏹️ Остановлен таймер учёбы для ${userId}, длительность: ${duration}с`, 'info')
     studyTimers.delete(userId)
     if (timerIntervals.has(userId)) {
       clearInterval(timerIntervals.get(userId))
@@ -573,88 +608,9 @@ function startStudyTimer(userId, status) {
   }
 }
 
-// Получение времени учебы для пользователя
 function getStudyTime(userId) {
   if (!studyTimers.has(userId)) return 0
-  const startTime = studyTimers.get(userId)
-  return Math.floor((Date.now() - startTime) / 1000)
-}
-
-// ========== РАБОТА С ПРОФИЛЯМИ ==========
-async function ensureProfile(retryCount = 0) {
-  if (!CURRENT_USER) {
-    console.error("❌ ensureProfile: Нет CURRENT_USER")
-    return false
-  }
-
-  const maxRetries = 3
-  
-  try {
-    const { data: profile, error: selectError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", CURRENT_USER.id)
-      .maybeSingle()
-
-    if (selectError) {
-      console.error("❌ Ошибка при проверке профиля:", selectError)
-      return false
-    }
-
-    if (profile) {
-      console.log("✅ Профиль уже существует:", profile.username)
-      // Запускаем таймер для существующего статуса
-      startStudyTimer(CURRENT_USER.id, profile.status)
-      return true
-    }
-
-    console.log("📝 Создаём профиль для пользователя:", CURRENT_USER.id)
-    
-    const username = CURRENT_USER.user_metadata?.full_name || 
-                     CURRENT_USER.email?.split('@')[0] || 
-                     "Пользователь"
-    
-    const { error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        id: CURRENT_USER.id,
-        username: username,
-        status: "🏠 Дома",
-        last_active: new Date().toISOString()
-      })
-
-    if (insertError) {
-      console.error(`❌ Ошибка создания профиля (попытка ${retryCount + 1}/${maxRetries}):`, insertError)
-      
-      if (insertError.code === '23505') {
-        console.log("⚠️ Профиль уже создан")
-        return true
-      }
-      
-      if (retryCount < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        return await ensureProfile(retryCount + 1)
-      }
-      
-      return false
-    }
-
-    console.log("✅ Профиль успешно создан")
-    return true
-    
-  } catch (err) {
-    console.error("❌ Исключение в ensureProfile:", err)
-    return false
-  }
-}
-
-// Функция для получения эмодзи статуса
-function getStatusEmoji(status) {
-  if (status.includes("Учёба")) return "📚"
-  if (status.includes("Кофе")) return "☕"
-  if (status.includes("игре")) return "🎮"
-  if (status.includes("Дома")) return "🏠"
-  return "🟢"
+  return Math.floor((Date.now() - studyTimers.get(userId)) / 1000)
 }
 
 async function loadMembers() {
@@ -666,37 +622,24 @@ async function loadMembers() {
     .order("username")
 
   if (error) {
-    console.error("Ошибка загрузки участников:", error)
+    addDebugLog(`❌ Ошибка загрузки участников: ${error.message}`, 'error')
     return
   }
 
-  // Обновляем онлайн статусы (считаем онлайн если активность была менее 2 минут назад)
   const twoMinutesAgo = Date.now() - 2 * 60 * 1000
   let onlineCount = 0
   let studyingCount = 0
   
   data.forEach(member => {
     const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
-    const isOnline = lastActive > twoMinutesAgo
-    if (isOnline) onlineCount++
+    if (lastActive > twoMinutesAgo) onlineCount++
     if (member.status === "📚 Учёба") studyingCount++
     
-    // Запускаем таймеры для всех пользователей со статусом "Учёба"
     if (member.status === "📚 Учёба") {
       startStudyTimer(member.id, member.status)
-    } else {
-      // Останавливаем таймер если статус не "Учёба"
-      if (timerIntervals.has(member.id)) {
-        clearInterval(timerIntervals.get(member.id))
-        timerIntervals.delete(member.id)
-      }
-      if (studyTimers.has(member.id)) {
-        studyTimers.delete(member.id)
-      }
     }
   })
   
-  // Обновляем статистику
   document.getElementById("online-count").textContent = onlineCount
   document.getElementById("studying-count").textContent = studyingCount
 
@@ -711,21 +654,18 @@ async function loadMembers() {
   container.innerHTML = data.map(member => {
     const avatarLetter = (member.username?.[0] || '?').toUpperCase()
     const statusText = member.status || "🏠 Дома"
-    const statusEmoji = getStatusEmoji(statusText)
+    const statusEmoji = statusText.includes("Учёба") ? "📚" : 
+                        statusText.includes("Кофе") ? "☕" : 
+                        statusText.includes("игре") ? "🎮" : "🏠"
     
     const isCurrentUser = member.id === CURRENT_USER?.id
-    const currentUserClass = isCurrentUser ? 'style="background: #e3f2fd; border-radius: 10px;"' : ''
-    
-    // Проверка онлайн статуса
     const lastActive = member.last_active ? new Date(member.last_active).getTime() : 0
     const isOnline = lastActive > (Date.now() - 2 * 60 * 1000)
-    
-    // Получаем время учебы
     const studySeconds = getStudyTime(member.id)
     const studyTimeText = studySeconds > 0 ? `<span class="study-timer">⏱️ ${formatStudyTime(studySeconds)}</span>` : ''
     
     return `
-      <div class="member" ${currentUserClass}>
+      <div class="member" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
         <div class="member-avatar">${avatarLetter}</div>
         <div class="member-info">
           <div class="member-name">
@@ -743,20 +683,18 @@ async function loadMembers() {
 
   const me = data.find(m => m.id === CURRENT_USER?.id)
   if (me) {
-    const headerUsername = document.getElementById("header-username")
-    if (headerUsername) {
-      headerUsername.textContent = me.username
-    }
+    document.getElementById("header-username").textContent = me.username
   }
 }
 
-// ========== РАБОТА СО СТАТУСОМ ==========
 async function updateStatus(statusText) {
   if (!CURRENT_USER) {
     alert("Сначала войдите в систему")
     return
   }
 
+  addDebugLog(`🔄 Смена статуса на: ${statusText}`, 'info')
+  
   const buttons = document.querySelectorAll(".status-btn")
   buttons.forEach(btn => btn.style.opacity = "0.5")
   
@@ -767,47 +705,31 @@ async function updateStatus(statusText) {
       .eq("id", CURRENT_USER.id)
 
     if (error) {
-      console.error("Ошибка обновления статуса:", error)
+      addDebugLog(`❌ Ошибка обновления статуса: ${error.message}`, 'error')
       alert("Ошибка обновления статуса: " + error.message)
     } else {
-      console.log("Статус обновлён на:", statusText)
-      
-      // Управляем таймером учебы
+      addDebugLog(`✅ Статус обновлён на: ${statusText}`, 'success')
       startStudyTimer(CURRENT_USER.id, statusText)
-      
       await loadMembers()
-      
-      const memberElements = document.querySelectorAll(".member")
-      memberElements.forEach(el => {
-        if (el.textContent.includes("(Вы)")) {
-          el.classList.add("status-updated")
-          setTimeout(() => el.classList.remove("status-updated"), 500)
-        }
-      })
     }
   } catch (err) {
-    console.error("Ошибка:", err)
-    alert("Не удалось обновить статус")
+    addDebugLog(`❌ Ошибка: ${err.message}`, 'error')
   } finally {
     buttons.forEach(btn => btn.style.opacity = "1")
   }
 }
 
-// ========== РАБОТА С ЧАТОМ ==========
 async function loadMessages() {
   if (!CURRENT_USER) return
   
   const { data, error } = await supabase
     .from("messages")
-    .select(`
-      *,
-      profiles (username)
-    `)
+    .select(`*, profiles (username)`)
     .order("created_at", { ascending: true })
     .limit(100)
 
   if (error) {
-    console.error("Ошибка загрузки сообщений:", error)
+    addDebugLog(`❌ Ошибка загрузки сообщений: ${error.message}`, 'error')
     return
   }
 
@@ -835,7 +757,6 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight
 }
 
-// ========== ОТПРАВКА СООБЩЕНИЯ ==========
 async function sendMessage() {
   const input = document.getElementById("chat-input")
   const message = input.value.trim()
@@ -843,47 +764,66 @@ async function sendMessage() {
   if (!message) return
 
   if (!CURRENT_USER?.id) {
-    console.log("❌ НЕТ USER ID", CURRENT_USER)
+    addDebugLog("❌ НЕТ USER ID", 'error')
     alert("Ошибка: пользователь не авторизован.")
     return
   }
 
+  addDebugLog(`📤 Отправка сообщения от ${CURRENT_USER.id}: "${message}"`, 'info')
+  
+  // ПРЯМАЯ ПРОВЕРКА ПРОФИЛЯ
   const profileExists = await ensureProfile()
   if (!profileExists) {
-    alert("❌ Не удалось создать профиль. Пожалуйста, обновите страницу и попробуйте снова.")
+    addDebugLog(`❌ ПРОФИЛЬ НЕ СУЩЕСТВУЕТ! Попробуйте нажать кнопку "Создать профиль"`, 'error')
+    alert("❌ Ваш профиль не найден в базе данных! Нажмите кнопку 'Создать профиль' и попробуйте снова.")
     return
   }
-
-  console.log("✅ Отправка сообщения от:", CURRENT_USER.id)
 
   const sendBtn = document.getElementById("send-btn")
   sendBtn.disabled = true
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("messages")
       .insert({
         user_id: CURRENT_USER.id,
         message: message
       })
+      .select()
 
     if (error) {
-      console.error("❌ Ошибка INSERT:", error)
-      alert("Ошибка отправки: " + error.message)
+      addDebugLog(`❌ Ошибка INSERT: ${error.message} (code: ${error.code})`, 'error')
+      
+      if (error.code === '23503') {
+        addDebugLog(`🔑 Ошибка внешнего ключа! Пользователь ${CURRENT_USER.id} не найден в таблице profiles`, 'error')
+        alert("❌ Ошибка: ваш профиль отсутствует в базе. Нажмите кнопку 'Создать профиль'")
+      } else {
+        alert("Ошибка отправки: " + error.message)
+      }
       return
     }
 
-    console.log("✅ Сообщение отправлено")
+    addDebugLog(`✅ Сообщение отправлено успешно!`, 'success')
     input.value = ""
     await loadMessages()
 
   } catch (err) {
-    console.error("❌ Исключение:", err)
-    alert("Ошибка: " + err.message)
+    addDebugLog(`❌ Исключение: ${err.message}`, 'error')
   } finally {
     sendBtn.disabled = false
     input.focus()
   }
+}
+
+async function updateOnlineStatus() {
+  if (!CURRENT_USER) return
+  
+  await supabase
+    .from("profiles")
+    .update({ last_active: new Date().toISOString() })
+    .eq("id", CURRENT_USER.id)
+  
+  loadMembers()
 }
 
 // ========== АВТОРИЗАЦИЯ ==========
@@ -895,88 +835,61 @@ async function loginGoogle() {
     }
   })
   if (error) {
-    console.error("Ошибка входа:", error)
-    alert("Ошибка входа: " + error.message)
+    addDebugLog(`❌ Ошибка входа: ${error.message}`, 'error')
   }
 }
 
 async function logout() {
-  // Останавливаем все таймеры
   timerIntervals.forEach(interval => clearInterval(interval))
   timerIntervals.clear()
   studyTimers.clear()
-  
   await supabase.auth.signOut()
   location.reload()
 }
 
-// ========== НАСТРОЙКА ИНТЕРФЕЙСА ==========
 function showApp() {
-  const loginScreen = document.getElementById("login-screen")
-  const mainApp = document.getElementById("main-app")
-  if (loginScreen) loginScreen.classList.add("hidden")
-  if (mainApp) mainApp.classList.remove("hidden")
+  document.getElementById("login-screen").classList.add("hidden")
+  document.getElementById("main-app").classList.remove("hidden")
   
-  // Запускаем периодическое обновление онлайн статуса
-  setInterval(() => {
-    updateOnlineStatus()
-  }, 30000) // Каждые 30 секунд
-  
-  // Обновляем список участников каждую секунду для таймеров
-  setInterval(() => {
-    loadMembers()
-  }, 1000)
+  setInterval(() => updateOnlineStatus(), 30000)
+  setInterval(() => loadMembers(), 1000)
 }
 
 function showLogin() {
-  const loginScreen = document.getElementById("login-screen")
-  const mainApp = document.getElementById("main-app")
-  if (loginScreen) loginScreen.classList.remove("hidden")
-  if (mainApp) mainApp.classList.add("hidden")
+  document.getElementById("login-screen").classList.remove("hidden")
+  document.getElementById("main-app").classList.add("hidden")
 }
 
-// ========== РЕАЛЬНОЕ ВРЕМЯ ==========
 function setupRealtime() {
-  const profilesChannel = supabase
+  supabase
     .channel('profiles-changes')
-    .on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'profiles' }, 
-      () => {
-        loadMembers()
-      }
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadMembers())
     .subscribe()
 
-  const messagesChannel = supabase
+  supabase
     .channel('messages-changes')
-    .on('postgres_changes', 
-      { event: 'INSERT', schema: 'public', table: 'messages' }, 
-      () => {
-        loadMessages()
-      }
-    )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => loadMessages())
     .subscribe()
     
-  console.log("Realtime подписки настроены")
+  addDebugLog("✅ Realtime подписки настроены", 'success')
 }
 
-// ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (userError) {
-    console.error("Ошибка получения пользователя:", userError)
+    addDebugLog(`❌ Ошибка получения пользователя: ${userError.message}`, 'error')
     showLogin()
     return
   }
 
   if (user) {
     CURRENT_USER = user
-    console.log("✅ Пользователь загружен:", CURRENT_USER.id)
+    addDebugLog(`👤 Пользователь загружен: ID=${CURRENT_USER.id}, Email=${CURRENT_USER.email}`, 'success')
     
-    const profileCreated = await ensureProfile()
-    if (!profileCreated) {
-      console.error("⚠️ ВНИМАНИЕ: Не удалось создать профиль!")
+    const profileOk = await ensureProfile()
+    if (!profileOk) {
+      addDebugLog(`⚠️ ВНИМАНИЕ: Профиль не создан автоматически! Нажмите кнопку "Создать профиль"`, 'error')
     }
     
     showApp()
@@ -989,13 +902,11 @@ async function init() {
   }
 
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("Auth state change:", event)
+    addDebugLog(`📡 Auth state change: ${event}`, 'info')
     
     if (event === 'SIGNED_IN') {
       const { data: { user } } = await supabase.auth.getUser()
       CURRENT_USER = user
-      console.log("✅ Пользователь вошёл:", CURRENT_USER?.id)
-      
       await ensureProfile()
       await updateOnlineStatus()
       showApp()
@@ -1005,21 +916,26 @@ async function init() {
     } else if (event === 'SIGNED_OUT') {
       CURRENT_USER = null
       showLogin()
-      setTimeout(() => location.reload(), 100)
     }
   })
 }
 
 // ========== НАВЕШИВАЕМ ОБРАБОТЧИКИ ==========
 document.addEventListener('DOMContentLoaded', () => {
-  const loginBtn = document.getElementById("google-login-btn")
-  if (loginBtn) loginBtn.onclick = loginGoogle
+  document.getElementById("google-login-btn")?.addEventListener('click', loginGoogle)
+  document.getElementById("logout-header-btn")?.addEventListener('click', logout)
+  document.getElementById("fix-profile-btn")?.addEventListener('click', async () => {
+    addDebugLog("🔧 Ручное создание профиля...", 'info')
+    const result = await forceCreateProfile()
+    if (result) {
+      alert("✅ Профиль успешно создан! Теперь можно отправлять сообщения.")
+      await loadMembers()
+    } else {
+      alert("❌ Не удалось создать профиль. Проверьте консоль.")
+    }
+  })
 
-  const logoutBtn = document.getElementById("logout-header-btn")
-  if (logoutBtn) logoutBtn.onclick = logout
-
-  const statusButtons = document.querySelectorAll(".status-btn")
-  statusButtons.forEach(btn => {
+  document.querySelectorAll(".status-btn").forEach(btn => {
     btn.onclick = () => {
       const status = btn.getAttribute("data-status")
       if (status) updateStatus(status)
